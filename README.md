@@ -11,3 +11,5 @@ The server will be deployed on OpenStack as a Docker image. A simple (command li
 https://godoc.org/golang.org/x/net/websocket
 
 https://golang.org/pkg/crypto/rsa/
+
+https://github.com/globalsign/mgo
