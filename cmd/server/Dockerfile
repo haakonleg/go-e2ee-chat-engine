@@ -1,4 +1,4 @@
-FROM golang:1.11-alpine
+FROM golang:1.11
 
 WORKDIR $GOPATH/src/github.com/haakonleg/go-e2ee-chat-engine
 COPY . .
