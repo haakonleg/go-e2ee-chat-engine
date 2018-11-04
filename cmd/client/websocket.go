@@ -1,4 +1,4 @@
-package websock
+package main
 
 import (
 	"log"
@@ -7,12 +7,17 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// NewClient creates a new websocket client
 func NewClient(server string) (*websocket.Conn, error) {
-	origin, _ := os.Hostname()
-
-	ws, err := websocket.Dial(server, "", "http://"+origin)
+	origin, err := os.Hostname()
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	ws, err := websocket.Dial(server, "", "http://"+origin)
+	if err != nil {
+		return nil, err
+	}
+
 	return ws, nil
 }

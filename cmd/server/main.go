@@ -2,12 +2,9 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
-	"github.com/haakonleg/go-e2ee-chat-engine/websock"
-	"golang.org/x/net/websocket"
+	"github.com/haakonleg/go-e2ee-chat-engine/server"
 )
 
 func main() {
@@ -16,16 +13,11 @@ func main() {
 		log.Fatal("Error: environment variable PORT is not set")
 	}
 
-	// Connect to the database
-	db := &mdb.Database{
-		DBName:   "go-e2ee-chat-engine",
-		MongoURL: "mongo:27017"}
+	serverConfig := server.Config{
+		ListenPort: port,
+		DBName:     "go-e2ee-chat-engine",
+		MongoURL:   "mongo:27017"}
 
-	if err := db.CreateConnection(); err != nil {
-		log.Fatal(err)
-	}
-
-	// Listen for websocket connections
-	log.Println("Listening for connections...")
-	http.ListenAndServe(":"+port, websocket.Handler(websock.ServerHandler))
+	server := server.CreateServer(serverConfig)
+	server.Start()
 }

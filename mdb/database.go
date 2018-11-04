@@ -1,41 +1,73 @@
 package mdb
 
 import (
+	"errors"
 	"log"
 
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
-type Database struct {
-	MongoURL string
-	DBName   string
+// DatabaseCollection is used to refer to allowed database collections in functions
+type DatabaseCollection int
 
-	session  *mgo.Session
-	database *mgo.Database
+const (
+	// Users is the collection containing users
+	Users DatabaseCollection = iota
+)
+
+func (c DatabaseCollection) String() string {
+	switch c {
+	case Users:
+		return "users"
+	}
+	return ""
 }
 
-func (d *Database) CreateConnection() error {
-	session, err := mgo.Dial(d.MongoURL)
+type Database struct {
+	dbName  string
+	session *mgo.Session
+}
+
+// CreateConnection creates a new connection to the database
+func CreateConnection(mongoURL, dbName string) (*Database, error) {
+	session, err := mgo.Dial(mongoURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	d.session = session
-	d.database = session.DB(d.DBName)
+	return &Database{
+		dbName:  dbName,
+		session: session}, nil
+}
+
+// Insert inserts one or more objects into the database, creates a temporary copy of the session for better concurrency performance
+func (db *Database) Insert(collection DatabaseCollection, objects []interface{}) error {
+	sessionCpy := db.session.Copy()
+	defer sessionCpy.Close()
+
+	col := sessionCpy.DB(db.dbName).C(collection.String())
+	if err := col.Insert(objects...); err != nil {
+		log.Println(err)
+		return err
+	}
 	return nil
 }
 
-func (d *Database) InsertTest() {
-	col := d.database.C("user")
+func (db *Database) FindOne(collection DatabaseCollection, query interface{}, result interface{}) error {
+	sessionCpy := db.session.Copy()
+	defer sessionCpy.Close()
 
-	test := struct {
-		ID   bson.ObjectId `bson:"id,omitempty"`
-		Name string        `bson:"name"`
-	}{ID: bson.NewObjectId(),
-		Name: "Test1"}
+	q := sessionCpy.DB(db.dbName).C(collection.String()).Find(query)
 
-	if err := col.Insert(test); err != nil {
-		log.Fatal(err)
+	if cnt, err := q.Count(); err != nil {
+		return err
+	} else if cnt == 0 {
+		return errors.New("Got 0 results")
 	}
+
+	if err := q.One(result); err != nil {
+		return err
+	}
+
+	return nil
 }
