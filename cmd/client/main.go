@@ -1,125 +1,93 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"errors"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
+	"time"
 
-	"github.com/haakonleg/go-e2ee-chat-engine/user"
+	"github.com/gdamore/tcell"
+
+	"github.com/rivo/tview"
 	"golang.org/x/net/websocket"
-
-	"github.com/haakonleg/go-e2ee-chat-engine/websock"
 )
 
 const (
-	privKeyFile = "privatekey.pem"
+	privKeyFile           = "privatekey.pem"
+	chatRoomsPollInterval = 5
 )
 
-var socket *websocket.Conn
+type Client struct {
+	sock    *websocket.Conn
+	authKey []byte
 
-func savePrivKey(privKey *rsa.PrivateKey) {
-	pem := user.MarshalPrivate(privKey)
-	if err := ioutil.WriteFile(privKeyFile, pem, 0644); err != nil {
-		log.Fatal(err)
-	}
+	app      *tview.Application
+	pages    *tview.Pages
+	loginGUI *LoginGUI
+	roomsGUI *RoomsGUI
 }
 
-// Called when user pressed the "create user" button
-func createUserHandler(gui *LoginGUI, server string, username string) error {
-	// Generate new key pair
-	privKey, pubKey := user.GenKeyPair()
-
-	// Send a request to register the user
-	regUserMsg := &websock.RegisterUserMessage{
-		Username:  username,
-		PublicKey: user.MarshalPublic(pubKey)}
-
-	if err := websock.SendMessage(socket, websock.RegisterUser, regUserMsg, websock.JSON); err != nil {
-		return err
+// Connect connects to the websocket server
+func (c *Client) Connect(server string) bool {
+	if c.sock == nil {
+		ws, err := websocket.Dial(server, "", "http://")
+		if err != nil {
+			c.ShowDialog("Error connecting to server")
+			return false
+		}
+		c.sock = ws
 	}
-
-	res, err := websock.GetResponse(socket)
-	if err != nil {
-		return errors.New("Did not get response from server")
-	}
-
-	if res.Type == websock.MessageOK {
-		// Save private key to file
-		savePrivKey(privKey)
-		gui.app.Stop()
-	}
-
-	return nil
+	return true
 }
 
-// Called when the user pressed the "login user" button
-func loginUserHandler(gui *LoginGUI, server string, username string) error {
-	// Get private key
-	pem, err := ioutil.ReadFile(privKeyFile)
-	if err != nil {
-		return errors.New("Error reading privatekey.pem file")
-	}
+// ShowDialog shows a message dialog to the user
+func (c *Client) ShowDialog(message string) {
+	modal := tview.NewModal()
+	modal.SetText(message).
+		AddButtons([]string{"Ok"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			c.pages.RemovePage("error")
+		}).
+		SetBackgroundColor(tcell.ColorDarkRed)
 
-	privKey, err := user.UnmarshalPrivate(pem)
-	if err != nil {
-		return errors.New("Error parsing private key")
-	}
+	c.pages.AddPage("error", modal, true, true)
+	c.app.SetFocus(modal)
+}
 
-	// Recieve auth challenge from server
-	if err := websock.SendMessage(socket, websock.LoginUser, username, websock.String); err != nil {
-		return err
-	}
-	res, err := websock.GetResponse(socket)
-	if err != nil {
-		return errors.New("Error receiving auth challenge from server")
-	}
+// ShowChatRoomGUI switches to the chat rooms interface
+func (c *Client) ShowChatRoomGUI() {
+	c.pages.SwitchToPage("rooms")
+	c.app.SetInputCapture(c.roomsGUI.KeyHandler)
 
-	// Decrypt auth challenge
-	decKey, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, res.Message)
-	if err != nil {
-		return errors.New("Error decrypting auth key")
-	}
-
-	// Send decrypted auth key to server
-	if err := websock.SendMessage(socket, websock.ChallengeResponse, decKey, websock.Bytes); err != nil {
-		return err
-	}
-
-	// Check response from server
-	res, err = websock.GetResponse(socket)
-	if res.Type == websock.MessageOK {
-		return errors.New("Logged in!")
-	} else {
-		return errors.New("Invalid private key")
-	}
-
-	return nil
+	// Start updater for the chat room list
+	c.roomsGUI.ChatRoomsUpdater = time.NewTicker(chatRoomsPollInterval * time.Second)
+	go c.roomsGUI.updateChatRooms(c)
 }
 
 func main() {
-	args := os.Args
-	if len(args) < 2 {
-		fmt.Printf("Usage: %s {server}\n", args[0])
-		os.Exit(1)
-	}
-	server := args[1]
+	c := &Client{}
 
-	// Try to connect to websocket
-	ws, err := NewClient(server)
-	if err != nil {
-		log.Fatal("Unable to connect to server")
-	}
-	socket = ws
+	// Initialize GUI
+	c.app = tview.NewApplication()
 
-	loginGUI := &LoginGUI{
+	c.loginGUI = &LoginGUI{
 		DefaultServerText: "ws://localhost:5000",
-		CreateUserHandler: createUserHandler,
-		LoginUserHandler:  loginUserHandler}
+		CreateUserHandler: c.createUserHandler,
+		LoginUserHandler:  c.loginUserHandler}
+	c.loginGUI.Create(c.app)
 
-	loginGUI.Create()
-	loginGUI.Show()
+	c.roomsGUI = &RoomsGUI{
+		CreateNewRoomHandler: c.createNewChatRoomHandler}
+	c.roomsGUI.Create()
+
+	c.pages = tview.NewPages().
+		AddPage("login", c.loginGUI.layout, true, true).
+		AddPage("rooms", c.roomsGUI.layout, true, false)
+
+	c.app.SetRoot(c.pages, true).
+		SetFocus(c.pages).
+		SetInputCapture(c.loginGUI.KeyHandler)
+
+	// Enter GUI event loop
+	if err := c.app.Run(); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -1,21 +1,21 @@
 package main
 
-import (
-	"log"
+/*
+	login_gui.go contains the code for the login GUI
+	This is the GUI shown when connecting to the server and authenticating a user
+*/
 
+import (
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 )
 
-type UserHandlerFunc func(gui *LoginGUI, server string, username string) error
-
 type LoginGUI struct {
 	DefaultServerText string
-	CreateUserHandler UserHandlerFunc
-	LoginUserHandler  UserHandlerFunc
+	CreateUserHandler func(server string, username string)
+	LoginUserHandler  func(server string, username string)
 
-	app *tview.Application
-
+	app           *tview.Application
 	layout        *tview.Grid
 	serverInput   *tview.InputField
 	usernameInput *tview.InputField
@@ -27,15 +27,10 @@ type LoginGUI struct {
 	focusedIndex      int
 }
 
-// Show starts the event loop for the GUI
-func (gui *LoginGUI) Show() {
-	if err := gui.app.Run(); err != nil {
-		log.Fatal(err)
-	}
-}
-
 // NewLoginGUI creates a new instance of the login GUI
-func (gui *LoginGUI) Create() {
+func (gui *LoginGUI) Create(app *tview.Application) {
+	gui.app = app
+
 	gui.serverInput = tview.NewInputField().
 		SetLabel("Server   ").
 		SetFieldWidth(60).
@@ -68,14 +63,9 @@ func (gui *LoginGUI) Create() {
 		gui.serverInput, gui.usernameInput,
 		gui.createBtn, gui.loginBtn}
 	gui.focusedIndex = 1
-
-	gui.app = tview.NewApplication().
-		SetRoot(gui.layout, true).
-		SetFocus(gui.layout).
-		SetInputCapture(gui.keyHandler)
 }
 
-func (gui *LoginGUI) keyHandler(ev *tcell.EventKey) *tcell.EventKey {
+func (gui *LoginGUI) KeyHandler(ev *tcell.EventKey) *tcell.EventKey {
 	// Change focus to next element if tab was pressed
 	if ev.Key() == tcell.KeyTab {
 		gui.focusedIndex++
@@ -86,20 +76,14 @@ func (gui *LoginGUI) keyHandler(ev *tcell.EventKey) *tcell.EventKey {
 		gui.app.SetFocus(gui.focusableElements[gui.focusedIndex])
 
 	} else if ev.Key() == tcell.KeyEnter {
-		var handler UserHandlerFunc
-
 		// Check if a button was pressed, and call its handler
 		switch gui.app.GetFocus() {
 		case gui.createBtn:
-			handler = gui.CreateUserHandler
+			gui.CreateUserHandler(gui.serverInput.GetText(), gui.usernameInput.GetText())
 		case gui.loginBtn:
-			handler = gui.LoginUserHandler
-		}
-
-		// If the handler returned an error display it in the status text
-		if err := handler(gui, gui.serverInput.GetText(), gui.usernameInput.GetText()); err != nil {
-			gui.statusText.SetText("Error: " + err.Error())
+			gui.LoginUserHandler(gui.serverInput.GetText(), gui.usernameInput.GetText())
 		}
 	}
+
 	return ev
 }

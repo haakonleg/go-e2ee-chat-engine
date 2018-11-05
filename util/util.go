@@ -1,4 +1,4 @@
-package user
+package util
 
 import (
 	"crypto/rand"
@@ -6,18 +6,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"log"
-	mrand "math/rand"
-)
-
-const (
-	bitSize     = 2048
-	authKeyLen  = 64
-	letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 // GenKeyPair generates an RSA key pair
 func GenKeyPair() (*rsa.PrivateKey, *rsa.PublicKey) {
-	key, err := rsa.GenerateKey(rand.Reader, bitSize)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,16 +54,4 @@ func UnmarshalPublic(pemBlock []byte) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 	return key, nil
-}
-
-// Generates a random authentication key, and encrypts it with the given public key
-// returns the encrypted and the original auth key
-func genAuthChallenge(pubKey *rsa.PublicKey) ([]byte, []byte) {
-	authKey := make([]byte, authKeyLen)
-	for i := range authKey {
-		authKey[i] = letterBytes[mrand.Int63()%int64(len(letterBytes))]
-	}
-
-	encKey, _ := rsa.EncryptPKCS1v15(rand.Reader, pubKey, authKey)
-	return encKey, authKey
 }

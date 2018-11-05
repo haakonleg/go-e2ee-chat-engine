@@ -13,12 +13,15 @@ type DatabaseCollection int
 const (
 	// Users is the collection containing users
 	Users DatabaseCollection = iota
+	ChatRooms
 )
 
 func (c DatabaseCollection) String() string {
 	switch c {
 	case Users:
 		return "users"
+	case ChatRooms:
+		return "chat_rooms"
 	}
 	return ""
 }
@@ -48,6 +51,17 @@ func (db *Database) Insert(collection DatabaseCollection, objects []interface{})
 	col := sessionCpy.DB(db.dbName).C(collection.String())
 	if err := col.Insert(objects...); err != nil {
 		log.Println(err)
+		return err
+	}
+	return nil
+}
+
+func (db *Database) FindAll(collection DatabaseCollection, query interface{}, result interface{}) error {
+	sessionCpy := db.session.Copy()
+	defer sessionCpy.Close()
+
+	q := sessionCpy.DB(db.dbName).C(collection.String()).Find(query)
+	if err := q.All(result); err != nil {
 		return err
 	}
 	return nil
