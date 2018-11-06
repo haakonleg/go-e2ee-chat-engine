@@ -24,6 +24,7 @@ type User struct {
 	AuthKey   []byte
 	EncKey    []byte
 	PublicKey *rsa.PublicKey
+	ChatRoom  string
 }
 
 // KeyMatches checks that an authentication key matches the one for this user
@@ -90,7 +91,7 @@ func NewUser(db *mdb.Database, username string) (*User, error) {
 	query := bson.M{"username": username}
 
 	user := new(mdb.User)
-	if err := db.FindOne(mdb.Users, query, user); err != nil {
+	if err := db.FindOne(mdb.Users, query, nil, user); err != nil {
 		log.Println(err)
 		return nil, err
 	}

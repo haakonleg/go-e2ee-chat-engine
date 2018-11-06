@@ -9,13 +9,21 @@ type MessageFormat int
 const (
 	Error MessageType = iota
 	MessageOK
+
+	// User/auth related
 	RegisterUser
 	LoginUser
 	AuthChallenge
-	ChallengeResponse
+	AuthChallengeResponse
+
+	// Chat related
 	CreateChatRoom
 	GetChatRooms
-	ChatRoomsResponse
+	GetChatRoomsResponse
+	JoinChat
+	ChatInfo
+	SendChat
+	ChatMessageReceived
 
 	JSON MessageFormat = iota
 	String
@@ -43,8 +51,8 @@ type CreateChatRoomMessage struct {
 	AuthKey []byte `json:"auth_key"`
 }
 
-// GetChatRoomsResponse is sent by the server in response to a GetChatRooms request
-type GetChatRoomsResponse struct {
+// GetChatRoomsResponseMessage is sent by the server in response to a GetChatRooms request
+type GetChatRoomsResponseMessage struct {
 	Rooms []Room `json:"rooms"`
 }
 
@@ -52,4 +60,37 @@ type GetChatRoomsResponse struct {
 type Room struct {
 	Name        string `json:"name"`
 	OnlineUsers int    `json:"online_users"`
+}
+
+// JoinChatMessage is the message sent by a client to request to join a chat room
+type JoinChatMessage struct {
+	Name    string `json:"name"`
+	AuthKey []byte `json:"auth_key"`
+}
+
+// ChatInfoMessage is the message sent by the server to a client who joined a chat room
+type ChatInfoMessage struct {
+	Name     string         `json:"name"`
+	Users    []User         `json:"users"`
+	Messages []*ChatMessage `json:"messages"`
+}
+
+// User is used in ChatInfoMessage
+type User struct {
+	Username  string `json:"username"`
+	PublicKey []byte `json:"public_key"`
+}
+
+// ChatMessage is used in ChatInfoMessage, and by the server when notifying a client about a new chat message
+type ChatMessage struct {
+	Sender    string `json:"sender"`
+	Timestamp int64  `json:"timestamp"`
+	Message   []byte `json:"message"`
+}
+
+// SendChatMessage is the message sent by the client to the server when a new chat message is sent.
+// The map EncryptedContent contains the message content encrypted by every recipients public key
+type SendChatMessage struct {
+	EncryptedContent map[string][]byte `json:"encrypted_content"`
+	AuthKey          []byte            `json:"auth_key"`
 }

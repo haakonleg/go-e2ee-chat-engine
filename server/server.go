@@ -25,8 +25,6 @@ type Server struct {
 
 	// The currently connected clients, if a connected client has logged in
 	// the key (websocket.Conn pointer) will refer to a user.User object, else nil
-	cmMtx            sync.Mutex
-	ChatRooms        map[string]*mdb.Chat
 	ccMtx            sync.Mutex
 	ConnectedClients map[*websocket.Conn]*User
 }
@@ -42,18 +40,7 @@ func CreateServer(config Config) *Server {
 	s := &Server{
 		Config:           config,
 		Db:               db,
-		ConnectedClients: make(map[*websocket.Conn]*User, 0),
-		ChatRooms:        make(map[string]*mdb.Chat)}
-
-	// Get chat rooms from the database and add it to the slice
-	results := make([]*mdb.Chat, 0)
-	if err := s.Db.FindAll(mdb.ChatRooms, nil, &results); err != nil {
-		log.Fatal(err)
-	}
-	for _, chatRoom := range results {
-		s.ChatRooms[chatRoom.Name] = chatRoom
-		s.ChatRooms[chatRoom.Name].Users = make([]string, 0)
-	}
+		ConnectedClients: make(map[*websocket.Conn]*User, 0)}
 
 	return s
 }
@@ -80,20 +67,6 @@ func (s *Server) RemoveClient(ws *websocket.Conn) {
 	s.ccMtx.Unlock()
 }
 
-// AddChatRoom adds a new chat room to the ChatRooms map
-func (s *Server) AddChatRoom(chat *mdb.Chat) {
-	s.cmMtx.Lock()
-	s.ChatRooms[chat.Name] = chat
-	s.cmMtx.Unlock()
-}
-
-// RemoveChatRoom removes a chat room from the ChatRooms map. name is the name of the chat room
-func (s *Server) RemoveChatRoom(name string) {
-	s.cmMtx.Lock()
-	delete(s.ChatRooms, name)
-	s.cmMtx.Unlock()
-}
-
 // WebsockHandler is the handler for the server websocket
 // it handles messages from a single client
 func (s *Server) WebsockHandler(ws *websocket.Conn) {
@@ -117,6 +90,10 @@ func (s *Server) WebsockHandler(ws *websocket.Conn) {
 			s.CreateChatRoom(ws, msg)
 		case websock.GetChatRooms:
 			s.GetChatRooms(ws)
+		case websock.JoinChat:
+			s.JoinChat(ws, msg)
+		case websock.SendChat:
+			s.ReceiveChatMessage(ws, msg)
 		default:
 			websock.InvalidMessage(ws)
 		}

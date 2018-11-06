@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"log"
+	"time"
 )
 
 // GenKeyPair generates an RSA key pair
@@ -54,4 +55,9 @@ func UnmarshalPublic(pemBlock []byte) (*rsa.PublicKey, error) {
 		return nil, err
 	}
 	return key, nil
+}
+
+// NowMillis returns the current unix millisecond timestamp
+func NowMillis() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
 }

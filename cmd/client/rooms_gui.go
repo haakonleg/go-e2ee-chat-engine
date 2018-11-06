@@ -9,9 +9,11 @@ import (
 )
 
 type RoomsGUI struct {
-	CreateNewRoomHandler func(name string)
-	ChatRoomsUpdater     *time.Ticker
+	CreateRoomHandler func(name string)
+	JoinChatHandler   func(name string)
+	ChatRoomsUpdater  *time.Ticker
 
+	gui           *GUI
 	layout        *tview.Pages
 	roomList      *tview.List
 	createRoomBtn *tview.Button
@@ -19,9 +21,13 @@ type RoomsGUI struct {
 	serverStatus  *tview.TextView
 }
 
+// Create initializes the widgets in the chat rooms GUI
 func (gui *RoomsGUI) Create() {
 	gui.roomList = tview.NewList()
-	gui.roomList.SetBorder(true).
+	gui.roomList.SetSelectedFunc(func(index int, text, secText string, scut rune) {
+		gui.JoinChatHandler(text)
+	}).
+		SetBorder(true).
 		SetTitle("Chat Rooms").
 		SetTitleAlign(tview.AlignLeft)
 
@@ -76,16 +82,20 @@ func (gui *RoomsGUI) getInput(title, label string, doneFunc func(text string)) s
 }
 
 // This function runs in a separate goroutine and updates the chat rooms list on a regular interval
-func (gui *RoomsGUI) updateChatRooms(c *Client) {
+func (gui *RoomsGUI) updateChatRooms(client *Client) {
 	update := func() {
-		chatRooms := c.getChatRooms()
-		c.app.QueueUpdate(func() {
+		chatRooms := client.getChatRooms()
+		if chatRooms.Rooms == nil {
+			return
+		}
+
+		gui.gui.app.QueueUpdate(func() {
 			gui.roomList.Clear()
 			for _, room := range chatRooms.Rooms {
 				online := strconv.Itoa(room.OnlineUsers)
 				gui.roomList.AddItem(room.Name, "Online users: "+online, 0, nil)
 			}
-			c.app.Draw()
+			gui.gui.app.Draw()
 		})
 	}
 
@@ -98,7 +108,7 @@ func (gui *RoomsGUI) updateChatRooms(c *Client) {
 // KeyHandler is the keyboard input handler for the chat rooms GUI
 func (gui *RoomsGUI) KeyHandler(ev *tcell.EventKey) *tcell.EventKey {
 	if ev.Rune() == 'c' {
-		gui.getInput("New Room", "Name ", gui.CreateNewRoomHandler)
+		gui.getInput("New Room", "Name ", gui.CreateRoomHandler)
 	}
 	return ev
 }

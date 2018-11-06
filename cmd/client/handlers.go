@@ -36,7 +36,7 @@ func (c *Client) createUserHandler(server string, username string) {
 
 	res, err := websock.GetResponse(c.sock)
 	if err != nil {
-		c.ShowDialog("Did not get a response from the server")
+		c.gui.ShowDialog("Did not get a response from the server")
 		return
 	}
 
@@ -45,7 +45,7 @@ func (c *Client) createUserHandler(server string, username string) {
 		savePrivKey(privKey)
 	}
 
-	c.ShowDialog("User created. You can now log in.")
+	c.gui.ShowDialog("User created. You can now log in.")
 }
 
 // Called when the user pressed the "login user" button
@@ -58,13 +58,13 @@ func (c *Client) loginUserHandler(server string, username string) {
 	// Read private key from file
 	pem, err := ioutil.ReadFile(privKeyFile)
 	if err != nil {
-		c.ShowDialog("Error reading privatekey.pem file")
+		c.gui.ShowDialog("Error reading privatekey.pem file")
 		return
 	}
 
 	privKey, err := util.UnmarshalPrivate(pem)
 	if err != nil {
-		c.ShowDialog("Error parsing private key")
+		c.gui.ShowDialog("Error parsing private key")
 		return
 	}
 
@@ -74,35 +74,36 @@ func (c *Client) loginUserHandler(server string, username string) {
 	// Recieve auth challenge from server
 	res, err := websock.GetResponse(c.sock)
 	if err != nil {
-		c.ShowDialog("Error receiving auth challenge from server")
+		c.gui.ShowDialog("Error receiving auth challenge from server")
 		return
 	} else if res.Type == websock.Error {
-		c.ShowDialog(string(res.Message))
+		c.gui.ShowDialog(string(res.Message))
 		return
 	}
 
 	// Try to decrypt auth challenge
 	decKey, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, res.Message)
 	if err != nil {
-		c.ShowDialog("Invalid private key")
+		c.gui.ShowDialog("Invalid private key")
 		return
 	}
 
 	// Send decrypted auth key to server
-	websock.SendMessage(c.sock, websock.ChallengeResponse, decKey, websock.Bytes)
+	websock.SendMessage(c.sock, websock.AuthChallengeResponse, decKey, websock.Bytes)
 
 	// Check response from server
 	if res, err = websock.GetResponse(c.sock); err != nil || res.Type != websock.MessageOK {
-		c.ShowDialog("Invalid private key")
+		c.gui.ShowDialog("Invalid private key")
 		return
 	}
 
 	// Login success, show the chat rooms GUI
+	c.privateKey = privKey
 	c.authKey = decKey
-	c.ShowChatRoomGUI()
+	c.gui.ShowChatRoomGUI(c)
 }
 
-func (c *Client) createNewChatRoomHandler(name string) {
+func (c *Client) createRoomHandler(name string) {
 	// Send request to create new chat room to server
 	req := &websock.CreateChatRoomMessage{
 		Name:    name,
@@ -111,22 +112,38 @@ func (c *Client) createNewChatRoomHandler(name string) {
 	websock.SendMessage(c.sock, websock.CreateChatRoom, req, websock.JSON)
 }
 
-func (c *Client) getChatRooms() *websock.GetChatRoomsResponse {
+func (c *Client) getChatRooms() *websock.GetChatRoomsResponseMessage {
 	// Send request for chat rooms
 	websock.SendMessage(c.sock, websock.GetChatRooms, nil, websock.Nil)
 
 	// Get chat rooms response from server
 	res, err := websock.GetResponse(c.sock)
-	if err != nil || res.Type != websock.ChatRoomsResponse {
-		c.ShowDialog("Error getting chat rooms from server")
+	if err != nil {
+		c.gui.ShowDialog(err.Error())
 		return nil
 	}
 
 	// Unmarshal response
-	chatRoomsResponse := new(websock.GetChatRoomsResponse)
+	chatRoomsResponse := new(websock.GetChatRoomsResponseMessage)
 	if err := json.Unmarshal(res.Message, chatRoomsResponse); err != nil {
-		c.ShowDialog("Error parsing chat rooms response")
+		c.gui.ShowDialog("Error parsing chat rooms response")
 		return nil
 	}
 	return chatRoomsResponse
+}
+
+func (c *Client) joinChatHandler(name string) {
+	// Send request to join chat room
+	req := &websock.JoinChatMessage{
+		Name:    name,
+		AuthKey: c.authKey}
+
+	websock.SendMessage(c.sock, websock.JoinChat, req, websock.JSON)
+
+	if _, err := websock.GetResponse(c.sock); err != nil {
+		c.gui.ShowDialog(err.Error())
+	}
+
+	// Show the chat interface
+	c.gui.ShowChatGUI(c)
 }

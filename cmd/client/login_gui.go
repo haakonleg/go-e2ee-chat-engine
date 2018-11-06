@@ -15,7 +15,7 @@ type LoginGUI struct {
 	CreateUserHandler func(server string, username string)
 	LoginUserHandler  func(server string, username string)
 
-	app           *tview.Application
+	gui           *GUI
 	layout        *tview.Grid
 	serverInput   *tview.InputField
 	usernameInput *tview.InputField
@@ -27,10 +27,8 @@ type LoginGUI struct {
 	focusedIndex      int
 }
 
-// NewLoginGUI creates a new instance of the login GUI
-func (gui *LoginGUI) Create(app *tview.Application) {
-	gui.app = app
-
+// Create initializes the widgets in the login GUI
+func (gui *LoginGUI) Create() {
 	gui.serverInput = tview.NewInputField().
 		SetLabel("Server   ").
 		SetFieldWidth(60).
@@ -73,11 +71,11 @@ func (gui *LoginGUI) KeyHandler(ev *tcell.EventKey) *tcell.EventKey {
 			gui.focusedIndex = 0
 		}
 
-		gui.app.SetFocus(gui.focusableElements[gui.focusedIndex])
+		gui.gui.app.SetFocus(gui.focusableElements[gui.focusedIndex])
 
 	} else if ev.Key() == tcell.KeyEnter {
 		// Check if a button was pressed, and call its handler
-		switch gui.app.GetFocus() {
+		switch gui.gui.app.GetFocus() {
 		case gui.createBtn:
 			gui.CreateUserHandler(gui.serverInput.GetText(), gui.usernameInput.GetText())
 		case gui.loginBtn:
