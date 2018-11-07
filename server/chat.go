@@ -119,6 +119,11 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 
 	// Add the chat messages addressed to this user
 	for _, message := range s.FindMessagesForUser(s.ConnectedClients[ws].Username, chatName) {
+		// Check if the message actually has the encrypted message
+		if len(message.MessageContent) == 0 {
+			continue
+		}
+
 		chatInfo.Messages = append(chatInfo.Messages, &websock.ChatMessage{
 			Sender:    message.Sender,
 			Timestamp: message.Timestamp,
@@ -204,14 +209,15 @@ func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
 	}
 
 	websock.SendMessage(ws, websock.MessageOK, "Message sent", websock.String)
-	// Notify everyone in the chat room about the new chat message
-	go s.NotifyChatMessage(username, chatName, sendChatMsg.EncryptedContent)
+
+	// Notify everyone in the chat room about the new chat message, and store the message in the database
+	timestamp := util.NowMillis()
+	go s.NotifyChatMessage(username, chatName, timestamp, sendChatMsg.EncryptedContent)
+	go s.AddMessageToDB(username, chatName, timestamp, sendChatMsg.EncryptedContent)
 }
 
 // NotifyChatMessage notifies all clients in a chat room about a new chat message
-func (s *Server) NotifyChatMessage(sender string, chatName string, encryptedContent map[string][]byte) {
-	timestamp := util.NowMillis()
-
+func (s *Server) NotifyChatMessage(sender string, chatName string, timestamp int64, encryptedContent map[string][]byte) {
 	// Get all clients in the chat room
 	clients := s.FindClientsInChat(chatName)
 
@@ -250,9 +256,25 @@ func (s *Server) NotifyUserJoined(joined *websocket.Conn, chatName string) {
 }
 
 // NotifyUserLeft notifies all clients in a chat room that a user left the chat room
-func (s *Server) NotifyUserLeft(username string, chatName string) {
+func (s *Server) NotifyUserLeft(username, chatName string) {
 	// Get all clients in the chat room
 	for _, client := range s.FindClientsInChat(chatName) {
 		websock.SendMessage(client, websock.UserLeft, username, websock.String)
+	}
+}
+
+// AddMessageToDB inserts a chat message into the database
+func (s *Server) AddMessageToDB(username, chatName string, timestamp int64, encryptedContent map[string][]byte) {
+	chatMessage := mdb.NewMessage(chatName, timestamp, username)
+
+	for recipient, encryptedMessage := range encryptedContent {
+		msg := mdb.MessageContent{
+			Recipient: recipient,
+			Content:   encryptedMessage}
+		chatMessage.MessageContent = append(chatMessage.MessageContent, msg)
+	}
+
+	if err := s.Db.Insert(mdb.Messages, []interface{}{chatMessage}); err != nil {
+		log.Println(err)
 	}
 }

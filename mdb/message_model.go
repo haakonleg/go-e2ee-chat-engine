@@ -2,7 +2,6 @@ package mdb
 
 import (
 	"github.com/globalsign/mgo/bson"
-	"github.com/haakonleg/go-e2ee-chat-engine/util"
 )
 
 type Message struct {
@@ -18,11 +17,11 @@ type MessageContent struct {
 	Content   []byte `bson:"content"`
 }
 
-func NewMessage(chatName, sender string) *Message {
+func NewMessage(chatName string, timestamp int64, sender string) *Message {
 	return &Message{
 		ID:             bson.NewObjectId(),
 		ChatName:       chatName,
-		Timestamp:      util.NowMillis(),
+		Timestamp:      timestamp,
 		Sender:         sender,
 		MessageContent: make([]MessageContent, 0)}
 }
