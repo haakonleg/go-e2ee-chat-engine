@@ -20,10 +20,14 @@ const (
 	CreateChatRoom
 	GetChatRooms
 	GetChatRoomsResponse
+
+	// Messages used for a chat session
 	JoinChat
 	ChatInfo
 	SendChat
 	ChatMessageReceived
+	UserJoined
+	UserLeft
 
 	JSON MessageFormat = iota
 	String
@@ -75,7 +79,7 @@ type ChatInfoMessage struct {
 	Messages []*ChatMessage `json:"messages"`
 }
 
-// User is used in ChatInfoMessage
+// User is used in ChatInfoMessage, and by the server when notifying a client about a new connected user
 type User struct {
 	Username  string `json:"username"`
 	PublicKey []byte `json:"public_key"`

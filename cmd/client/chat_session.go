@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 
@@ -29,13 +30,17 @@ func NewChatSession(ws *websocket.Conn, authKey []byte, privateKey *rsa.PrivateK
 }
 
 // ChatSession runs in a separate goroutine and listens for new chat messages and users when a user is in a chat session
+// TODO: Maybe move the callbacks into the struct, to make it more consistent with rest of the code
 func (cs *ChatSession) ChatSession(
 	onChatInfo func(error, *ChatSession, *websock.ChatInfoMessage),
-	onChatMessage func(error, *ChatSession, *websock.ChatMessage)) {
+	onChatMessage func(error, *ChatSession, *websock.ChatMessage),
+	onUserJoined func(error, *ChatSession, *websock.User),
+	onUserLeft func(*ChatSession, string)) {
 
 	for {
 		msg, err := websock.GetResponse(cs.Socket)
 		if err != nil {
+			log.Println(err)
 			break
 		}
 
@@ -43,22 +48,35 @@ func (cs *ChatSession) ChatSession(
 		case websock.ChatInfo:
 			chatInfo := new(websock.ChatInfoMessage)
 			if err = json.Unmarshal(msg.Message, chatInfo); err == nil {
+				// Decrypt chat messages
 				err = cs.DecryptChatMessages(chatInfo.Messages...)
-			}
 
-			// Add users to the user list
-			for i := range chatInfo.Users {
-				cs.Users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
+				// Add users to the user list
+				for i := range chatInfo.Users {
+					cs.Users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
+				}
 			}
 			onChatInfo(err, cs, chatInfo)
 
 		case websock.ChatMessageReceived:
 			chatMessage := new(websock.ChatMessage)
-			if err = json.Unmarshal(msg.Message, &chatMessage); err == nil {
+			if err = json.Unmarshal(msg.Message, chatMessage); err == nil {
 				err = cs.DecryptChatMessages(chatMessage)
 			}
-
 			onChatMessage(err, cs, chatMessage)
+
+		case websock.UserJoined:
+			user := new(websock.User)
+			if err = json.Unmarshal(msg.Message, user); err == nil {
+				cs.Users[user.Username] = user
+			}
+			onUserJoined(err, cs, user)
+
+		case websock.UserLeft:
+			// Remove user from the user list
+			username := string(msg.Message)
+			delete(cs.Users, username)
+			onUserLeft(cs, username)
 		}
 	}
 }

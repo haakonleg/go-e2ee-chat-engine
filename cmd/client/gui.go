@@ -98,5 +98,7 @@ func (g *GUI) ShowChatGUI(client *Client) {
 
 	go client.chatSession.ChatSession(
 		g.chatGUI.onChatInfo,
-		g.chatGUI.onChatMessage)
+		g.chatGUI.onChatMessage,
+		g.chatGUI.onUserJoined,
+		g.chatGUI.onUserLeft)
 }

@@ -116,3 +116,33 @@ func (gui *ChatGUI) onChatMessage(err error, cs *ChatSession, chatMessage *webso
 		gui.gui.app.Draw()
 	})
 }
+
+func (gui *ChatGUI) onUserJoined(err error, cs *ChatSession, user *websock.User) {
+	gui.gui.app.QueueUpdate(func() {
+		if err != nil {
+			gui.gui.ShowDialog(err.Error())
+			gui.gui.app.Draw()
+			return
+		}
+
+		gui.WriteUserList(cs)
+		var buf bytes.Buffer
+		buf.WriteString("[dimgray]")
+		buf.WriteString(user.Username)
+		buf.WriteString(" connected\n")
+		gui.msgView.Write(buf.Bytes())
+		gui.gui.app.Draw()
+	})
+}
+
+func (gui *ChatGUI) onUserLeft(cs *ChatSession, username string) {
+	gui.gui.app.QueueUpdate(func() {
+		gui.WriteUserList(cs)
+		var buf bytes.Buffer
+		buf.WriteString("[dimgray]")
+		buf.WriteString(username)
+		buf.WriteString(" disconnected\n")
+		gui.msgView.Write(buf.Bytes())
+		gui.gui.app.Draw()
+	})
+}

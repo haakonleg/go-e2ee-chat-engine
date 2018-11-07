@@ -125,9 +125,10 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 			Message:   message.MessageContent[0].Content})
 	}
 
-	log.Printf("Send: %v\n", chatInfo)
-
 	websock.SendMessage(ws, websock.ChatInfo, chatInfo, websock.JSON)
+
+	// Notify other clients in the chat that a new user has joined
+	go s.NotifyUserJoined(ws, chatName)
 }
 
 // ClientLeftChat is called when a client leaves a chat room, it removes the username of the client
@@ -135,8 +136,12 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 // will be notfied that this user left the chat as well
 func (s *Server) ClientLeftChat(ws *websocket.Conn, chatName string) {
 	s.ccMtx.Lock()
+	defer s.ccMtx.Unlock()
+
+	username := s.ConnectedClients[ws].Username
 	s.ConnectedClients[ws].ChatRoom = ""
-	s.ccMtx.Unlock()
+	// Notify clients that this user left the chat
+	go s.NotifyUserLeft(username, chatName)
 }
 
 // FindMessagesForUser finds all chat messages with a specific user as recipient in a specific chat room
@@ -198,6 +203,7 @@ func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
 		return
 	}
 
+	websock.SendMessage(ws, websock.MessageOK, "Message sent", websock.String)
 	// Notify everyone in the chat room about the new chat message
 	go s.NotifyChatMessage(username, chatName, sendChatMsg.EncryptedContent)
 }
@@ -205,7 +211,6 @@ func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
 // NotifyChatMessage notifies all clients in a chat room about a new chat message
 func (s *Server) NotifyChatMessage(sender string, chatName string, encryptedContent map[string][]byte) {
 	timestamp := util.NowMillis()
-	log.Printf("Got message: %v\n", encryptedContent)
 
 	// Get all clients in the chat room
 	clients := s.FindClientsInChat(chatName)
@@ -221,7 +226,33 @@ func (s *Server) NotifyChatMessage(sender string, chatName string, encryptedCont
 			Timestamp: timestamp,
 			Message:   encryptedContent[recipient]}
 
-		log.Printf("Send message: %v\n", msg)
 		websock.SendMessage(client, websock.ChatMessageReceived, msg, websock.JSON)
+	}
+}
+
+// NotifyUserJoined notifies all clients in a chat room that a new user has joined the chat room
+func (s *Server) NotifyUserJoined(joined *websocket.Conn, chatName string) {
+	// Get user object
+	s.ccMtx.Lock()
+	username := s.ConnectedClients[joined].Username
+	pubKey := s.ConnectedClients[joined].PublicKey
+	s.ccMtx.Unlock()
+
+	msg := &websock.User{
+		Username:  username,
+		PublicKey: util.MarshalPublic(pubKey)}
+
+	for _, client := range s.FindClientsInChat(chatName) {
+		if client != joined {
+			websock.SendMessage(client, websock.UserJoined, msg, websock.JSON)
+		}
+	}
+}
+
+// NotifyUserLeft notifies all clients in a chat room that a user left the chat room
+func (s *Server) NotifyUserLeft(username string, chatName string) {
+	// Get all clients in the chat room
+	for _, client := range s.FindClientsInChat(chatName) {
+		websock.SendMessage(client, websock.UserLeft, username, websock.String)
 	}
 }

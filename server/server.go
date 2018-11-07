@@ -63,8 +63,12 @@ func (s *Server) AddClient(ws *websocket.Conn, user *User) {
 // RemoveClient removes a client from the ConnectedClients map
 func (s *Server) RemoveClient(ws *websocket.Conn) {
 	s.ccMtx.Lock()
-	delete(s.ConnectedClients, ws)
+	chatName := s.ConnectedClients[ws].ChatRoom
 	s.ccMtx.Unlock()
+	if chatName != "" {
+		s.ClientLeftChat(ws, chatName)
+	}
+	delete(s.ConnectedClients, ws)
 }
 
 // WebsockHandler is the handler for the server websocket
