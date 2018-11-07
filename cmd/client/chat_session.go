@@ -47,8 +47,8 @@ func (cs *ChatSession) ChatSession(
 			}
 
 			// Add users to the user list
-			for _, user := range chatInfo.Users {
-				cs.Users[user.Username] = &user
+			for i := range chatInfo.Users {
+				cs.Users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
 			}
 			onChatInfo(err, cs, chatInfo)
 

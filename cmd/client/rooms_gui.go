@@ -59,6 +59,7 @@ func (gui *RoomsGUI) getInput(title, label string, doneFunc func(text string)) s
 		switch key {
 		case tcell.KeyEnter:
 			doneFunc(input.GetText())
+			gui.layout.RemovePage("popup")
 		case tcell.KeyEscape:
 			gui.layout.RemovePage("popup")
 		}
@@ -84,8 +85,10 @@ func (gui *RoomsGUI) getInput(title, label string, doneFunc func(text string)) s
 // This function runs in a separate goroutine and updates the chat rooms list on a regular interval
 func (gui *RoomsGUI) updateChatRooms(client *Client) {
 	update := func() {
-		chatRooms := client.getChatRooms()
-		if chatRooms.Rooms == nil {
+		chatRooms, err := client.getChatRooms()
+		if err != nil {
+			gui.gui.ShowDialog(err.Error())
+			gui.gui.app.Draw()
 			return
 		}
 

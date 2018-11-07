@@ -50,8 +50,9 @@ func (s *Server) GetChatRooms(ws *websocket.Conn) {
 		log.Println(err)
 	}
 
-	response := new(websock.GetChatRoomsResponseMessage)
-	response.Rooms = make([]websock.Room, 0, len(results))
+	response := &websock.GetChatRoomsResponseMessage{
+		Rooms: make([]websock.Room, 0, len(results))}
+
 	for _, room := range results {
 		response.Rooms = append(response.Rooms, websock.Room{
 			Name:        room.Name,
@@ -104,7 +105,7 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 	// Create response object, send the client list of users, and messages sent that this user can decrypt
 	chatInfo := &websock.ChatInfoMessage{
 		Users:    make([]websock.User, 0),
-		Messages: make([]websock.ChatMessage, 0)}
+		Messages: make([]*websock.ChatMessage, 0)}
 
 	for _, client := range s.FindClientsInChat(chatName) {
 		u, ok := s.ConnectedClients[client]
@@ -118,11 +119,13 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 
 	// Add the chat messages addressed to this user
 	for _, message := range s.FindMessagesForUser(s.ConnectedClients[ws].Username, chatName) {
-		chatInfo.Messages = append(chatInfo.Messages, websock.ChatMessage{
+		chatInfo.Messages = append(chatInfo.Messages, &websock.ChatMessage{
 			Sender:    message.Sender,
 			Timestamp: message.Timestamp,
 			Message:   message.MessageContent[0].Content})
 	}
+
+	log.Printf("Send: %v\n", chatInfo)
 
 	websock.SendMessage(ws, websock.ChatInfo, chatInfo, websock.JSON)
 }
@@ -202,6 +205,7 @@ func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
 // NotifyChatMessage notifies all clients in a chat room about a new chat message
 func (s *Server) NotifyChatMessage(sender string, chatName string, encryptedContent map[string][]byte) {
 	timestamp := util.NowMillis()
+	log.Printf("Got message: %v\n", encryptedContent)
 
 	// Get all clients in the chat room
 	clients := s.FindClientsInChat(chatName)
@@ -217,6 +221,7 @@ func (s *Server) NotifyChatMessage(sender string, chatName string, encryptedCont
 			Timestamp: timestamp,
 			Message:   encryptedContent[recipient]}
 
+		log.Printf("Send message: %v\n", msg)
 		websock.SendMessage(client, websock.ChatMessageReceived, msg, websock.JSON)
 	}
 }

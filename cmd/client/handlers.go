@@ -4,19 +4,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
-	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
 )
-
-func savePrivKey(privKey *rsa.PrivateKey) {
-	pem := util.MarshalPrivate(privKey)
-	if err := ioutil.WriteFile(privKeyFile, pem, 0644); err != nil {
-		log.Fatal(err)
-	}
-}
 
 // Called when user pressed the "create user" button
 func (c *Client) createUserHandler(server string, username string) {
@@ -42,7 +35,7 @@ func (c *Client) createUserHandler(server string, username string) {
 
 	if res.Type == websock.MessageOK {
 		// Save private key to file
-		savePrivKey(privKey)
+		savePrivKey(username, privKey)
 	}
 
 	c.gui.ShowDialog("User created. You can now log in.")
@@ -56,7 +49,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	}
 
 	// Read private key from file
-	pem, err := ioutil.ReadFile(privKeyFile)
+	pem, err := ioutil.ReadFile(username + ".pem")
 	if err != nil {
 		c.gui.ShowDialog("Error reading privatekey.pem file")
 		return
@@ -74,10 +67,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	// Recieve auth challenge from server
 	res, err := websock.GetResponse(c.sock)
 	if err != nil {
-		c.gui.ShowDialog("Error receiving auth challenge from server")
-		return
-	} else if res.Type == websock.Error {
-		c.gui.ShowDialog(string(res.Message))
+		c.gui.ShowDialog(err.Error())
 		return
 	}
 
@@ -110,26 +100,27 @@ func (c *Client) createRoomHandler(name string) {
 		AuthKey: c.authKey}
 
 	websock.SendMessage(c.sock, websock.CreateChatRoom, req, websock.JSON)
+	if _, err := websock.GetResponse(c.sock); err != nil {
+		c.gui.ShowDialog(err.Error())
+	}
 }
 
-func (c *Client) getChatRooms() *websock.GetChatRoomsResponseMessage {
+func (c *Client) getChatRooms() (*websock.GetChatRoomsResponseMessage, error) {
 	// Send request for chat rooms
 	websock.SendMessage(c.sock, websock.GetChatRooms, nil, websock.Nil)
 
 	// Get chat rooms response from server
 	res, err := websock.GetResponse(c.sock)
 	if err != nil {
-		c.gui.ShowDialog(err.Error())
-		return nil
+		return nil, err
 	}
 
 	// Unmarshal response
 	chatRoomsResponse := new(websock.GetChatRoomsResponseMessage)
 	if err := json.Unmarshal(res.Message, chatRoomsResponse); err != nil {
-		c.gui.ShowDialog("Error parsing chat rooms response")
-		return nil
+		return nil, errors.New("Error parsing chat rooms response")
 	}
-	return chatRoomsResponse
+	return chatRoomsResponse, nil
 }
 
 func (c *Client) joinChatHandler(name string) {

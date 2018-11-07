@@ -2,13 +2,12 @@ package main
 
 import (
 	"crypto/rsa"
+	"io/ioutil"
 	"log"
+	"os"
 
+	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"golang.org/x/net/websocket"
-)
-
-const (
-	privKeyFile = "privatekey.pem"
 )
 
 type Client struct {
@@ -32,11 +31,22 @@ func (c *Client) Connect(server string) bool {
 	return true
 }
 
+func savePrivKey(username string, privKey *rsa.PrivateKey) {
+	pem := util.MarshalPrivate(privKey)
+	if err := ioutil.WriteFile(username+".pem", pem, 0644); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
+	f, _ := os.OpenFile("client_log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	defer f.Close()
+	log.SetOutput(f)
+
 	c := &Client{}
 	guiConfig := &GUIConfig{
 		DefaultServerText:     "ws://localhost:5000",
-		ChatRoomsPollInterval: 5,
+		ChatRoomsPollInterval: 2,
 		CreateUserHandler:     c.createUserHandler,
 		LoginUserHandler:      c.loginUserHandler,
 		CreateRoomHandler:     c.createRoomHandler,

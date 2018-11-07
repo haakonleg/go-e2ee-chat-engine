@@ -54,19 +54,19 @@ func (db *Database) MakeIndexes() {
 	// Indexes for users
 	c := db.session.DB(db.dbName).C(Users.String())
 	c.EnsureIndex(mgo.Index{
-		Key:    []string{"$text:username"},
+		Key:    []string{"username"},
 		Unique: true})
 
 	// Indexes for chat rooms
 	c = db.session.DB(db.dbName).C(ChatRooms.String())
 	c.EnsureIndex(mgo.Index{
-		Key:    []string{"$text:name"},
+		Key:    []string{"name"},
 		Unique: true})
 
 	// Indexes for messages
 	c = db.session.DB(db.dbName).C(Messages.String())
 	c.EnsureIndex(mgo.Index{
-		Key:    []string{"$text:chat_name"},
+		Key:    []string{"chat_name"},
 		Unique: false})
 }
 
