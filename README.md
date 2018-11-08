@@ -13,3 +13,6 @@ The server will be deployed on OpenStack as a Docker image. A simple (command li
 - Allow users to be part of multiple chat rooms (see above).
 - Add a server setting to purge old chat messages after a certain date (to avoid massive amounts of old messages)
 - Implement concept of a chat room admin/owner (and add ability to delete/rename chat room, kick/ban users)
+
+- Allow user to leave a chat in the client app
+- The chat room list in the client is not good (when it refreshes every 2 seconds the user selection is lost). To fix this do not clear the entire list when it is refreshed, but add only new chat rooms to the list on refresh.
