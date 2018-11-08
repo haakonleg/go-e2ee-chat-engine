@@ -16,5 +16,5 @@ The server will be deployed on OpenStack as a Docker image. A simple (command li
 - Allow user to leave a chat in the client app
 - The chat room list in the client is not good (when it refreshes every 2 seconds the user selection is lost). To fix this do not clear the entire list when it is refreshed, but add only new chat rooms to the list on refresh.
 - Prevent users from sending empty messages (@barskern)
-- Prevent users from registering a user with a empty username (@barskern)
+- ~~Prevent users from registering a user with a empty username++~~ (@barskern)
 - Add validation of messages on the server side

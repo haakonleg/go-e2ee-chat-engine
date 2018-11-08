@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/globalsign/mgo/bson"
 	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
@@ -27,6 +29,24 @@ type User struct {
 	ChatRoom  string
 }
 
+// ValidateUsername checks that a username fulfills certain requirements. It
+// returns an error with a descriptive message if does not uphold requirements.
+//
+// FIXME should probably be moved to a different file/module when validation of
+// other messages is improved
+func ValidateUsername(username string) error {
+	if username == "" {
+		return errors.New("Username cannot be empty")
+	}
+	if len(username) < 3 {
+		return errors.New("Username has to contain at least 3 characters")
+	}
+	if len(username) > 20 {
+		return errors.New("Username cannot contain more than 20 characters")
+	}
+	return nil
+}
+
 // KeyMatches checks that an authentication key matches the one for this user
 func (u *User) KeyMatches(authKey []byte) bool {
 	return bytes.Compare(u.AuthKey, authKey) == 0
@@ -37,6 +57,12 @@ func (s *Server) RegisterUser(ws *websocket.Conn, msg *websock.Message) {
 	regUserMsg := new(websock.RegisterUserMessage)
 	if err := json.Unmarshal(msg.Message, regUserMsg); err != nil {
 		websock.InvalidFormat(ws)
+		return
+	}
+	regUserMsg.Username = strings.TrimSpace(regUserMsg.Username)
+
+	if err := ValidateUsername(regUserMsg.Username); err != nil {
+		websock.SendMessage(ws, websock.Error, "Invalid username, "+err.Error(), websock.String)
 		return
 	}
 
