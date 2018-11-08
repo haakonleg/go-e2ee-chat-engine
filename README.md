@@ -7,9 +7,9 @@ The project idea is to develop a chat engine utilizing end-to-end encryption wit
 
 The server will be deployed on OpenStack as a Docker image. A simple (command line) demonstration client will be created.
 
-## Libraries to use
-https://godoc.org/golang.org/x/net/websocket
-
-https://golang.org/pkg/crypto/rsa/
-
-https://github.com/globalsign/mgo
+## Todo
+- Add ability to set a password for a chat room.
+- At the moment, a user cannot see messages that is sent when he is not in a chat room the moment it is sent (because clients in chat rooms are not tracked in the database, but in-memory on the server). Fix this.
+- Allow users to be part of multiple chat rooms (see above).
+- Add a server setting to purge old chat messages after a certain date (to avoid massive amounts of old messages)
+- Implement concept of a chat room admin/owner (and add ability to delete/rename chat room)

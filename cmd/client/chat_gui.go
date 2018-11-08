@@ -12,6 +12,7 @@ import (
 
 type ChatGUI struct {
 	SendChatMessageHandler func(message string)
+	LeaveChatHandler       func()
 
 	gui      *GUI
 	layout   *tview.Grid
@@ -32,11 +33,16 @@ func (gui *ChatGUI) Create() {
 		SetBorder(true).
 		SetTitle("Chat")
 
+	sendBtn := tview.NewButton("(Enter) Send")
+	exitBtn := tview.NewButton("(Esc) Leave")
+
 	gui.layout = tview.NewGrid()
-	gui.layout.SetRows(0, 3).
-		SetColumns(0, 30).
-		AddItem(gui.msgView, 0, 0, 1, 1, 0, 0, false).
-		AddItem(gui.userList, 0, 1, 2, 1, 0, 0, false)
+	gui.layout.SetRows(0, 3, 1).
+		SetColumns(20, 1, 20, 0, 30).
+		AddItem(gui.msgView, 0, 0, 1, 4, 0, 0, false).
+		AddItem(gui.userList, 0, 4, 2, 1, 0, 0, false).
+		AddItem(sendBtn, 2, 0, 1, 1, 0, 0, false).
+		AddItem(exitBtn, 2, 2, 1, 1, 0, 0, false)
 
 	gui.AddMsgInput()
 }
@@ -50,7 +56,7 @@ func (gui *ChatGUI) AddMsgInput() {
 		SetTitle("Message").
 		SetTitleAlign(tview.AlignLeft)
 
-	gui.layout.AddItem(gui.msgInput, 1, 0, 1, 1, 0, 0, true)
+	gui.layout.AddItem(gui.msgInput, 1, 0, 1, 4, 0, 0, true)
 	gui.gui.app.SetFocus(gui.layout)
 }
 
@@ -98,6 +104,7 @@ func (gui *ChatGUI) onChatInfo(err error, cs *ChatSession, chatInfo *websock.Cha
 		for _, msg := range chatInfo.Messages {
 			fmtMsg := formatChatMessage(msg.Sender, msg.Message, msg.Timestamp)
 			gui.msgView.Write(fmtMsg)
+			gui.msgView.ScrollToEnd()
 		}
 		gui.gui.app.Draw()
 	})
@@ -145,4 +152,11 @@ func (gui *ChatGUI) onUserLeft(cs *ChatSession, username string) {
 		gui.msgView.Write(buf.Bytes())
 		gui.gui.app.Draw()
 	})
+}
+
+func (gui *ChatGUI) KeyHandler(key *tcell.EventKey) *tcell.EventKey {
+	if key.Key() == tcell.KeyEsc {
+		gui.LeaveChatHandler()
+	}
+	return key
 }
