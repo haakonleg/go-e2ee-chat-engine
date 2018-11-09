@@ -67,7 +67,7 @@ func (s *Server) RegisterUser(ws *websocket.Conn, msg *websock.Message) {
 
 	// Add new user to database
 	user := mdb.NewUser(regUserMsg.Username, regUserMsg.PublicKey)
-	if err := s.Db.Insert(mdb.Users, []interface{}{user}); err != nil {
+	if err := s.Db.Insert(mdb.Users, user); err != nil {
 		websock.SendMessage(ws, websock.Error, "Error registering user", websock.String)
 		return
 	}

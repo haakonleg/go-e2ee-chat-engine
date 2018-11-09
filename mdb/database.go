@@ -71,7 +71,7 @@ func (db *Database) MakeIndexes() {
 }
 
 // Insert inserts one or more objects into the database, creates a temporary copy of the session for better concurrency performance
-func (db *Database) Insert(collection DatabaseCollection, objects []interface{}) error {
+func (db *Database) Insert(collection DatabaseCollection, objects ...interface{}) error {
 	sessionCpy := db.session.Copy()
 	defer sessionCpy.Close()
 
