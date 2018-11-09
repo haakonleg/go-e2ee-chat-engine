@@ -34,7 +34,7 @@ func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.Message) {
 
 	// Add the chat room to the database
 	chat := mdb.NewChat(createChatRoomMsg.Name)
-	if err := s.Db.Insert(mdb.ChatRooms, []interface{}{chat}); err != nil {
+	if err := s.Db.Insert(mdb.ChatRooms, chat); err != nil {
 		websock.SendMessage(ws, websock.Error, "Error creating chat room", websock.String)
 		return
 	}
@@ -279,7 +279,7 @@ func (s *Server) AddMessageToDB(username, chatName string, timestamp int64, encr
 		chatMessage.MessageContent = append(chatMessage.MessageContent, msg)
 	}
 
-	if err := s.Db.Insert(mdb.Messages, []interface{}{chatMessage}); err != nil {
+	if err := s.Db.Insert(mdb.Messages, chatMessage); err != nil {
 		log.Println(err)
 	}
 }
