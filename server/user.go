@@ -24,7 +24,6 @@ const (
 type User struct {
 	Username  string
 	AuthKey   []byte
-	EncKey    []byte
 	PublicKey *rsa.PublicKey
 	ChatRoom  string
 }
@@ -83,14 +82,14 @@ func (s *Server) LoginUser(ws *websocket.Conn, msg *websock.Message) {
 	username := string(msg.Message)
 
 	// Create new user object
-	newUser, err := NewUser(s.Db, username)
+	newUser, encKey, err := NewUser(s.Db, username)
 	if err != nil {
 		websock.SendMessage(ws, websock.Error, "User does not exist", websock.String)
 		return
 	}
 
 	// Send auth challenge
-	websock.SendMessage(ws, websock.AuthChallenge, newUser.EncKey, websock.Bytes)
+	websock.SendMessage(ws, websock.AuthChallenge, encKey, websock.Bytes)
 
 	// Recieve auth challenge response
 	res, err := websock.GetResponse(ws)
@@ -112,21 +111,21 @@ func (s *Server) LoginUser(ws *websocket.Conn, msg *websock.Message) {
 // NewUser creates a new user object for a connected client, with the username, generated (temporary) authentication
 // key and the encrypted version of the key. A random byte slice is generated and encrypted with the users public key, the user
 // is expected to send in response the decrypted string
-func NewUser(db *mdb.Database, username string) (*User, error) {
+func NewUser(db *mdb.Database, username string) (*User, []byte, error) {
 	// Retrieve user from DB
 	query := bson.M{"username": username}
 
 	user := new(mdb.User)
 	if err := db.FindOne(mdb.Users, query, nil, user); err != nil {
 		log.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Unmarshal public key
 	pubKey, err := util.UnmarshalPublic(user.PublicKey)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Generate auth challenge
@@ -135,8 +134,7 @@ func NewUser(db *mdb.Database, username string) (*User, error) {
 	return &User{
 		Username:  username,
 		AuthKey:   authKey,
-		EncKey:    encKey,
-		PublicKey: pubKey}, nil
+		PublicKey: pubKey}, encKey, nil
 }
 
 // CheckAuth cheks that the recieved authentication token matches the expected token for the user
