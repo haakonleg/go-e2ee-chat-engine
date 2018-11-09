@@ -58,7 +58,8 @@ type CreateChatRoomMessage struct {
 
 // GetChatRoomsResponseMessage is sent by the server in response to a GetChatRooms request
 type GetChatRoomsResponseMessage struct {
-	Rooms []Room `json:"rooms"`
+	TotalConnected int    `json:"total_connected"`
+	Rooms          []Room `json:"rooms"`
 }
 
 // Room is used in GetChatRoomsResponse

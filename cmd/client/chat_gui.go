@@ -99,6 +99,7 @@ func (gui *ChatGUI) onChatInfo(err error, cs *ChatSession, chatInfo *websock.Cha
 			return
 		}
 
+		gui.msgView.Clear()
 		gui.WriteUserList(cs)
 
 		for _, msg := range chatInfo.Messages {
