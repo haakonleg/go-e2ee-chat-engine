@@ -28,6 +28,7 @@ const (
 	ChatMessageReceived
 	UserJoined
 	UserLeft
+	LeaveChat
 
 	JSON MessageFormat = iota
 	String
@@ -74,9 +75,10 @@ type JoinChatMessage struct {
 
 // ChatInfoMessage is the message sent by the server to a client who joined a chat room
 type ChatInfoMessage struct {
-	Name     string         `json:"name"`
-	Users    []User         `json:"users"`
-	Messages []*ChatMessage `json:"messages"`
+	Name       string         `json:"name"`
+	MyUsername string         `json:"my_username"`
+	Users      []User         `json:"users"`
+	Messages   []*ChatMessage `json:"messages"`
 }
 
 // User is used in ChatInfoMessage, and by the server when notifying a client about a new connected user

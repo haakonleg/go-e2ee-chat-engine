@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
-	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 
@@ -14,33 +13,28 @@ import (
 )
 
 type ChatSession struct {
-	Socket     *websocket.Conn
-	AuthKey    []byte
-	PrivateKey *rsa.PrivateKey
-	Users      map[string]*websock.User
-}
+	DisconnectFunc func()
+	OnChatInfo     func(error, *ChatSession, *websock.ChatInfoMessage)
+	OnChatMessage  func(error, *ChatSession, *websock.ChatMessage)
+	OnUserJoined   func(error, *ChatSession, *websock.User)
+	OnUserLeft     func(*ChatSession, string)
+	Socket         *websocket.Conn
+	PrivateKey     *rsa.PrivateKey
+	AuthKey        []byte
 
-// NewChatSession creates a new instance of ChatSession
-func NewChatSession(ws *websocket.Conn, authKey []byte, privateKey *rsa.PrivateKey) *ChatSession {
-	return &ChatSession{
-		Socket:     ws,
-		AuthKey:    authKey,
-		PrivateKey: privateKey,
-		Users:      make(map[string]*websock.User, 0)}
+	username string
+	users    map[string]*websock.User
 }
 
 // ChatSession runs in a separate goroutine and listens for new chat messages and users when a user is in a chat session
 // TODO: Maybe move the callbacks into the struct, to make it more consistent with rest of the code
-func (cs *ChatSession) ChatSession(
-	onChatInfo func(error, *ChatSession, *websock.ChatInfoMessage),
-	onChatMessage func(error, *ChatSession, *websock.ChatMessage),
-	onUserJoined func(error, *ChatSession, *websock.User),
-	onUserLeft func(*ChatSession, string)) {
+func (cs *ChatSession) StartChatSession() {
+	cs.users = make(map[string]*websock.User, 0)
 
+Loop:
 	for {
 		msg, err := websock.GetResponse(cs.Socket)
 		if err != nil {
-			log.Println(err)
 			break
 		}
 
@@ -48,37 +42,47 @@ func (cs *ChatSession) ChatSession(
 		case websock.ChatInfo:
 			chatInfo := new(websock.ChatInfoMessage)
 			if err = json.Unmarshal(msg.Message, chatInfo); err == nil {
+				cs.username = chatInfo.MyUsername
+
 				// Decrypt chat messages
 				err = cs.DecryptChatMessages(chatInfo.Messages...)
 
 				// Add users to the user list
 				for i := range chatInfo.Users {
-					cs.Users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
+					cs.users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
 				}
 			}
-			onChatInfo(err, cs, chatInfo)
+			cs.OnChatInfo(err, cs, chatInfo)
 
 		case websock.ChatMessageReceived:
 			chatMessage := new(websock.ChatMessage)
 			if err = json.Unmarshal(msg.Message, chatMessage); err == nil {
 				err = cs.DecryptChatMessages(chatMessage)
 			}
-			onChatMessage(err, cs, chatMessage)
+			cs.OnChatMessage(err, cs, chatMessage)
 
 		case websock.UserJoined:
 			user := new(websock.User)
 			if err = json.Unmarshal(msg.Message, user); err == nil {
-				cs.Users[user.Username] = user
+				cs.users[user.Username] = user
 			}
-			onUserJoined(err, cs, user)
+			cs.OnUserJoined(err, cs, user)
 
 		case websock.UserLeft:
 			// Remove user from the user list
 			username := string(msg.Message)
-			delete(cs.Users, username)
-			onUserLeft(cs, username)
+
+			// If the user who left is me, quit the chat
+			if username == cs.username {
+				break Loop
+			}
+
+			delete(cs.users, username)
+			cs.OnUserLeft(cs, username)
 		}
 	}
+
+	cs.DisconnectFunc()
 }
 
 // DecryptChatMessages decrypts chat messages using an RSA private key
@@ -102,7 +106,7 @@ func (cs *ChatSession) SendChatMessage(message string) {
 		AuthKey:          cs.AuthKey}
 
 	// For every user in the chat, encrypt the message with their public key
-	for _, user := range cs.Users {
+	for _, user := range cs.users {
 		pubKey, err := util.UnmarshalPublic(user.PublicKey)
 		if err != nil {
 			continue
@@ -115,4 +119,10 @@ func (cs *ChatSession) SendChatMessage(message string) {
 	}
 
 	websock.SendMessage(cs.Socket, websock.SendChat, req, websock.JSON)
+}
+
+// LeaveChat is called when a user decides to leave a chat room. The client sends a message
+// notifying the server that the client has left the chat room.
+func (cs *ChatSession) LeaveChat() {
+	websock.SendMessage(cs.Socket, websock.LeaveChat, nil, websock.Nil)
 }

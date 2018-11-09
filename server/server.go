@@ -66,7 +66,7 @@ func (s *Server) RemoveClient(ws *websocket.Conn) {
 	chatName := s.ConnectedClients[ws].ChatRoom
 	s.ccMtx.Unlock()
 	if chatName != "" {
-		s.ClientLeftChat(ws, chatName)
+		s.ClientLeftChat(ws)
 	}
 	delete(s.ConnectedClients, ws)
 }
@@ -98,6 +98,8 @@ func (s *Server) WebsockHandler(ws *websocket.Conn) {
 			s.JoinChat(ws, msg)
 		case websock.SendChat:
 			s.ReceiveChatMessage(ws, msg)
+		case websock.LeaveChat:
+			s.ClientLeftChat(ws)
 		default:
 			websock.InvalidMessage(ws)
 		}
