@@ -19,3 +19,5 @@ The server will be deployed on OpenStack as a Docker image. A simple (command li
 - ~~Prevent users from registering a user with a empty username++~~ (@barskern)
 - Add validation of messages on the server side
 - The server code is probably not thread-safe (ConnectedClients map in server.go), we need to redisign the way we access the clients and currently connected users. Probably need to find a way to not have to use mutexes directly, but create some kind of abstraction to access the connected clients.
+- Seperate validation from the server code to another file/package, and ensure that validation is being done server side for usernames, chat room names, chat messages etc...
+- Ensure that chat rooms and messages are being fetched from the database in a preffered order. For example maybe chat rooms should be listed in descending order according to number of users, then the timestamp etc... And chat messages must be listed according to the timestamp. This is currently not ensured in the server code.
