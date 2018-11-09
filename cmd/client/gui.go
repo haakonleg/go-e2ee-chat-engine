@@ -78,6 +78,8 @@ func (g *GUI) ShowChatRoomGUI(client *Client) {
 	g.pages.SwitchToPage("rooms")
 	g.app.SetInputCapture(g.roomsGUI.KeyHandler)
 
+	g.roomsGUI.ServerAddress = g.loginGUI.serverInput.GetText()
+
 	// Start updater for the chat room list
 	g.roomsGUI.ChatRoomsUpdater = time.NewTicker(time.Duration(g.chatRoomsPollInterval) * time.Second)
 	go g.roomsGUI.updateChatRooms(client)

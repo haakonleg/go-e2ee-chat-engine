@@ -51,7 +51,8 @@ func (s *Server) GetChatRooms(ws *websocket.Conn) {
 	}
 
 	response := &websock.GetChatRoomsResponseMessage{
-		Rooms: make([]websock.Room, 0, len(results))}
+		TotalConnected: len(s.ConnectedClients),
+		Rooms:          make([]websock.Room, 0, len(results))}
 
 	for _, room := range results {
 		response.Rooms = append(response.Rooms, websock.Room{

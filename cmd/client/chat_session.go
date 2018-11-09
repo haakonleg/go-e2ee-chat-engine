@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// ChatSession contains the context and callback methods of a chat session
 type ChatSession struct {
 	DisconnectFunc func()
 	OnChatInfo     func(error, *ChatSession, *websock.ChatInfoMessage)
@@ -26,8 +27,7 @@ type ChatSession struct {
 	users    map[string]*websock.User
 }
 
-// ChatSession runs in a separate goroutine and listens for new chat messages and users when a user is in a chat session
-// TODO: Maybe move the callbacks into the struct, to make it more consistent with rest of the code
+// StartChatSession runs in a separate goroutine and listens for new chat messages and users when a user is in a chat session
 func (cs *ChatSession) StartChatSession() {
 	cs.users = make(map[string]*websock.User, 0)
 

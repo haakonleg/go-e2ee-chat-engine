@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/haakonleg/go-e2ee-chat-engine/websock"
+
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 )
@@ -12,6 +14,7 @@ type RoomsGUI struct {
 	CreateRoomHandler func(name string)
 	JoinChatHandler   func(name string)
 	ChatRoomsUpdater  *time.Ticker
+	ServerAddress     string
 
 	gui           *GUI
 	layout        *tview.Pages
@@ -82,27 +85,48 @@ func (gui *RoomsGUI) getInput(title, label string, doneFunc func(text string)) s
 	return ""
 }
 
+func (gui *RoomsGUI) addChatRoom(room *websock.Room) {
+	// Check if the room already exists in the list
+	hasChatRoom := func(name string) bool {
+		for i := 0; i < gui.roomList.GetItemCount(); i++ {
+			if name, _ := gui.roomList.GetItemText(i); name == room.Name {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Add the chat room if it is not in the list
+	if !hasChatRoom(room.Name) {
+		gui.roomList.AddItem(room.Name, "Online users: "+strconv.Itoa(room.OnlineUsers), 0, nil)
+	}
+}
+
 // This function runs in a separate goroutine and updates the chat rooms list on a regular interval
 func (gui *RoomsGUI) updateChatRooms(client *Client) {
 	update := func() {
 		chatRooms, err := client.getChatRooms()
-		if err != nil {
-			gui.gui.ShowDialog(err.Error())
-			gui.gui.app.Draw()
-			return
-		}
 
 		gui.gui.app.QueueUpdate(func() {
-			gui.roomList.Clear()
+			if err != nil {
+				gui.gui.ShowDialog(err.Error())
+				gui.gui.app.Draw()
+				return
+			}
+
+			// Update
+			gui.serverStatus.SetText("Connected to: " + gui.ServerAddress + "\tConnected Users: " + strconv.Itoa(chatRooms.TotalConnected))
+
+			// Add every chat room to the list
 			for _, room := range chatRooms.Rooms {
-				online := strconv.Itoa(room.OnlineUsers)
-				gui.roomList.AddItem(room.Name, "Online users: "+online, 0, nil)
+				gui.addChatRoom(&room)
 			}
 			gui.gui.app.Draw()
 		})
 	}
 
 	update()
+	// Update the chat rooms on every timer fire
 	for range gui.ChatRoomsUpdater.C {
 		update()
 	}
