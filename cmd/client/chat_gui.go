@@ -86,7 +86,7 @@ func (gui *ChatGUI) MsgInputHandler(key tcell.Key) {
 // WriteUserList adds the currently connected users to the list of users
 func (gui *ChatGUI) WriteUserList(cs *ChatSession) {
 	gui.userList.Clear()
-	for _, user := range cs.Users {
+	for _, user := range cs.users {
 		gui.userList.Write([]byte(user.Username + "\n"))
 	}
 }

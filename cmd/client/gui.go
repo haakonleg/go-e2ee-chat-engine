@@ -88,17 +88,22 @@ func (g *GUI) ShowChatGUI(client *Client) {
 	g.roomsGUI.ChatRoomsUpdater.Stop()
 
 	g.pages.SwitchToPage("chat")
-	g.app.SetInputCapture(nil)
+	g.app.SetInputCapture(g.chatGUI.KeyHandler)
 
 	// Start chat session
-	client.chatSession = NewChatSession(client.sock, client.authKey, client.privateKey)
+	client.chatSession = &ChatSession{
+		DisconnectFunc: func() { g.ShowChatRoomGUI(client) },
+		OnChatInfo:     g.chatGUI.onChatInfo,
+		OnChatMessage:  g.chatGUI.onChatMessage,
+		OnUserJoined:   g.chatGUI.onUserJoined,
+		OnUserLeft:     g.chatGUI.onUserLeft,
+		Socket:         client.sock,
+		PrivateKey:     client.privateKey,
+		AuthKey:        client.authKey}
 
-	// Set handlers
+	// Set handlers for chat gui
 	g.chatGUI.SendChatMessageHandler = client.chatSession.SendChatMessage
+	g.chatGUI.LeaveChatHandler = client.chatSession.LeaveChat
 
-	go client.chatSession.ChatSession(
-		g.chatGUI.onChatInfo,
-		g.chatGUI.onChatMessage,
-		g.chatGUI.onUserJoined,
-		g.chatGUI.onUserLeft)
+	go client.chatSession.StartChatSession()
 }

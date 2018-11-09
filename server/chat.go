@@ -104,8 +104,9 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 
 	// Create response object, send the client list of users, and messages sent that this user can decrypt
 	chatInfo := &websock.ChatInfoMessage{
-		Users:    make([]websock.User, 0),
-		Messages: make([]*websock.ChatMessage, 0)}
+		MyUsername: s.ConnectedClients[ws].Username,
+		Users:      make([]websock.User, 0),
+		Messages:   make([]*websock.ChatMessage, 0)}
 
 	for _, client := range s.FindClientsInChat(chatName) {
 		u, ok := s.ConnectedClients[client]
@@ -139,12 +140,15 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, chatName string) {
 // ClientLeftChat is called when a client leaves a chat room, it removes the username of the client
 // from the map of chat rooms and the chat room name from the User object. Other clients in the chat
 // will be notfied that this user left the chat as well
-func (s *Server) ClientLeftChat(ws *websocket.Conn, chatName string) {
+func (s *Server) ClientLeftChat(ws *websocket.Conn) {
 	s.ccMtx.Lock()
 	defer s.ccMtx.Unlock()
 
+	chatName := s.ConnectedClients[ws].ChatRoom
 	username := s.ConnectedClients[ws].Username
 	s.ConnectedClients[ws].ChatRoom = ""
+
+	websock.SendMessage(ws, websock.UserLeft, username, websock.String)
 	// Notify clients that this user left the chat
 	go s.NotifyUserLeft(username, chatName)
 }
