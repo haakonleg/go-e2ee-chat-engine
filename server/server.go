@@ -3,7 +3,6 @@ package server
 import (
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
@@ -21,12 +20,8 @@ type Config struct {
 // Server contains the context of the chat engine server
 type Server struct {
 	Config
-	Db *mdb.Database
-
-	// The currently connected clients, if a connected client has logged in
-	// the key (websocket.Conn pointer) will refer to a user.User object, else nil
-	ccMtx            sync.Mutex
-	ConnectedClients map[*websocket.Conn]*User
+	Db    *mdb.Database
+	Users Users
 }
 
 // CreateServer creates a new instance of the server using the config
@@ -38,9 +33,10 @@ func CreateServer(config Config) *Server {
 	}
 
 	s := &Server{
-		Config:           config,
-		Db:               db,
-		ConnectedClients: make(map[*websocket.Conn]*User, 0)}
+		Config: config,
+		Db:     db,
+		Users:  Users{data: make(map[*websocket.Conn]*User, 0)},
+	}
 
 	return s
 }
@@ -52,30 +48,34 @@ func (s *Server) Start() {
 	http.ListenAndServe(":"+s.ListenPort, websocket.Handler(s.WebsockHandler))
 }
 
-// AddClient adds a new client to the ConnectedClients map, go maps are not thread-safe
-// so access must be synchronized
+// AddClient adds a new client to Users
 func (s *Server) AddClient(ws *websocket.Conn, user *User) {
-	s.ccMtx.Lock()
-	s.ConnectedClients[ws] = user
-	s.ccMtx.Unlock()
+	if !s.Users.Insert(ws, user) {
+		log.Print("Websocket connection is already associated with a user")
+	}
 }
 
 // RemoveClient removes a client from the ConnectedClients map
 func (s *Server) RemoveClient(ws *websocket.Conn) {
-	s.ccMtx.Lock()
-	chatName := s.ConnectedClients[ws].ChatRoom
-	s.ccMtx.Unlock()
-	if chatName != "" {
+	user, ok := s.Users.Get(ws)
+	if !ok || user == nil {
+		log.Print("Websocket was not associated with a user")
+		return
+	}
+
+	user.Lock()
+	defer user.Unlock()
+	if user.ChatRoom != "" {
 		s.ClientLeftChat(ws)
 	}
-	delete(s.ConnectedClients, ws)
+	s.Users.Remove(ws)
 }
 
 // WebsockHandler is the handler for the server websocket
 // it handles messages from a single client
 func (s *Server) WebsockHandler(ws *websocket.Conn) {
 	s.AddClient(ws, nil)
-	log.Printf("Client connected: %s. Total connected: %d", ws.Request().RemoteAddr, len(s.ConnectedClients))
+	log.Printf("Client connected: %s. Total connected: %d", ws.Request().RemoteAddr, s.Users.Len())
 
 	// Listen for messages
 	for {
@@ -106,5 +106,5 @@ func (s *Server) WebsockHandler(ws *websocket.Conn) {
 	}
 
 	s.RemoveClient(ws)
-	log.Printf("Client disconnected: %s. Total connected: %d\n", ws.Request().RemoteAddr, len(s.ConnectedClients))
+	log.Printf("Client disconnected: %s. Total connected: %d\n", ws.Request().RemoteAddr, s.Users.Len())
 }
