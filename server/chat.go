@@ -41,7 +41,7 @@ func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.Message) {
 	}
 
 	// Add the chat room to the database
-	chat := mdb.NewChat(createChatRoomMsg.Name)
+	chat := mdb.NewChat(createChatRoomMsg.Name, createChatRoomMsg.Password, createChatRoomMsg.IsHidden)
 	if err := s.Db.Insert(mdb.ChatRooms, chat); err != nil {
 		websock.SendMessage(ws, websock.Error, "Error creating chat room", websock.String)
 		return
@@ -50,11 +50,11 @@ func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.Message) {
 	websock.SendMessage(ws, websock.MessageOK, "Chat room created", websock.String)
 }
 
-// GetChatRooms returns all chat rooms to the websocket client
+// GetChatRooms returns all non-hidden chat rooms to the websocket client
 func (s *Server) GetChatRooms(ws *websocket.Conn) {
-	// Get chat rooms from the database and add it to the slice
+	// Get chat rooms from the database (which are not hidden), and add it to the struct
 	results := make([]*mdb.Chat, 0)
-	if err := s.Db.FindAll(mdb.ChatRooms, nil, nil, &results); err != nil {
+	if err := s.Db.FindAll(mdb.ChatRooms, bson.M{"is_hidden": false}, nil, &results); err != nil {
 		log.Println(err)
 		return
 	}
@@ -66,6 +66,7 @@ func (s *Server) GetChatRooms(ws *websocket.Conn) {
 	for _, room := range results {
 		response.Rooms = append(response.Rooms, websock.Room{
 			Name:        room.Name,
+			HasPassword: len(room.PasswordHash) != 0,
 			OnlineUsers: s.Users.LenInChat(room.Name)})
 	}
 
@@ -79,6 +80,7 @@ func (s *Server) JoinChat(ws *websocket.Conn, msg *websock.Message) {
 		websock.InvalidFormat(ws)
 		return
 	}
+
 	// Check that user is logged in
 	user, ok := s.Users.Get(ws)
 	if !ok || user == nil {
@@ -100,9 +102,16 @@ func (s *Server) JoinChat(ws *websocket.Conn, msg *websock.Message) {
 		return
 	}
 
-	// Check that chat room exists
-	if !s.Db.DocumentExists(mdb.ChatRooms, bson.M{"name": joinChatMsg.Name}) {
+	// Retrieve the chat room from database
+	chat := new(mdb.Chat)
+	if err := s.Db.FindOne(mdb.ChatRooms, bson.M{"name": joinChatMsg.Name}, nil, chat); err != nil {
 		websock.SendMessage(ws, websock.Error, "This chat room does not exist", websock.String)
+		return
+	}
+
+	// Verify password (if necessary)
+	if len(chat.PasswordHash) != 0 && !chat.ValidPassword(joinChatMsg.Password) {
+		websock.SendMessage(ws, websock.Error, "Invalid password", websock.String)
 		return
 	}
 

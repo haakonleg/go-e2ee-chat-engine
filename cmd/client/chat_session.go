@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 
@@ -35,6 +36,7 @@ Loop:
 	for {
 		msg, err := websock.GetResponse(cs.Socket)
 		if err != nil {
+			log.Println(err)
 			break
 		}
 
@@ -109,10 +111,12 @@ func (cs *ChatSession) SendChatMessage(message string) {
 	for _, user := range cs.users {
 		pubKey, err := util.UnmarshalPublic(user.PublicKey)
 		if err != nil {
+			log.Println(err)
 			continue
 		}
 		encMsg, err := rsa.EncryptPKCS1v15(rand.Reader, pubKey, []byte(message))
 		if err != nil {
+			log.Println(err)
 			continue
 		}
 		req.EncryptedContent[user.Username] = encMsg

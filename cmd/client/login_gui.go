@@ -11,11 +11,11 @@ import (
 )
 
 type LoginGUI struct {
+	*GUI
 	DefaultServerText string
 	CreateUserHandler func(server string, username string)
 	LoginUserHandler  func(server string, username string)
 
-	gui           *GUI
 	layout        *tview.Grid
 	serverInput   *tview.InputField
 	usernameInput *tview.InputField
@@ -71,11 +71,11 @@ func (gui *LoginGUI) KeyHandler(ev *tcell.EventKey) *tcell.EventKey {
 			gui.focusedIndex = 0
 		}
 
-		gui.gui.app.SetFocus(gui.focusableElements[gui.focusedIndex])
+		gui.app.SetFocus(gui.focusableElements[gui.focusedIndex])
 
 	} else if ev.Key() == tcell.KeyEnter {
 		// Check if a button was pressed, and call its handler
-		switch gui.gui.app.GetFocus() {
+		switch gui.app.GetFocus() {
 		case gui.createBtn:
 			gui.CreateUserHandler(gui.serverInput.GetText(), gui.usernameInput.GetText())
 		case gui.loginBtn:

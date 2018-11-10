@@ -52,8 +52,10 @@ type RegisterUserMessage struct {
 
 // CreateChatRoomMessage is the message sent by a client to request creation of a new chat room
 type CreateChatRoomMessage struct {
-	Name    string `json:"name"`
-	AuthKey []byte `json:"auth_key"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	IsHidden bool   `json:"is_hidden"`
+	AuthKey  []byte `json:"auth_key"`
 }
 
 // GetChatRoomsResponseMessage is sent by the server in response to a GetChatRooms request
@@ -65,13 +67,15 @@ type GetChatRoomsResponseMessage struct {
 // Room is used in GetChatRoomsResponse
 type Room struct {
 	Name        string `json:"name"`
+	HasPassword bool   `json:"has_password"`
 	OnlineUsers int    `json:"online_users"`
 }
 
 // JoinChatMessage is the message sent by a client to request to join a chat room
 type JoinChatMessage struct {
-	Name    string `json:"name"`
-	AuthKey []byte `json:"auth_key"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	AuthKey  []byte `json:"auth_key"`
 }
 
 // ChatInfoMessage is the message sent by the server to a client who joined a chat room

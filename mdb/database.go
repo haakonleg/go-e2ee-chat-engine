@@ -100,22 +100,6 @@ func (db *Database) FindAll(collection DatabaseCollection, query interface{}, se
 	return nil
 }
 
-func (db *Database) DocumentExists(collection DatabaseCollection, query interface{}) bool {
-	sessionCpy := db.session.Copy()
-	defer sessionCpy.Close()
-
-	n, err := sessionCpy.DB(db.dbName).C(collection.String()).Find(query).Count()
-	if err != nil {
-		log.Println(err)
-		return false
-	}
-
-	if n < 1 {
-		return false
-	}
-	return true
-}
-
 func (db *Database) FindOne(collection DatabaseCollection, query interface{}, selector interface{}, result interface{}) error {
 	sessionCpy := db.session.Copy()
 	defer sessionCpy.Close()
