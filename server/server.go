@@ -62,11 +62,11 @@ func (s *Server) RemoveClient(ws *websocket.Conn) {
 		log.Print("Websocket was not associated with a user")
 		return
 	}
-
 	user.Lock()
 	defer user.Unlock()
+
 	if user.ChatRoom != "" {
-		s.ClientLeftChat(ws)
+		go s.ClientLeftChat(ws)
 	}
 	s.Users.Remove(ws)
 }

@@ -181,6 +181,7 @@ func (s *Server) RegisterUser(ws *websocket.Conn, msg *websock.Message) {
 // LoginUser authenticates a user using a randomly generated authentication token
 // This token is encrypted with the public key of the username the client is trying to log in as
 // The client is then expected to respond with the correct decrypted token
+// TODO check if user is already logged in
 func (s *Server) LoginUser(ws *websocket.Conn, msg *websock.Message) {
 	username := string(msg.Message)
 
