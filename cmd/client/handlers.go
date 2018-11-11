@@ -64,7 +64,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	// Send log in request to server
 	websock.SendMessage(c.sock, websock.LoginUser, username, websock.String)
 
-	// Recieve auth challenge from server
+	// Receive auth challenge from server
 	res, err := websock.GetResponse(c.sock)
 	if err != nil {
 		c.gui.ShowDialog(err.Error())

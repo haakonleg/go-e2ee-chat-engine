@@ -196,7 +196,7 @@ func (s *Server) FindMessagesForUser(username, chatName string) []*mdb.Message {
 	return result
 }
 
-// ReceiveChatMessage is called when the server recieves a chat message from a client that is in a chat room
+// ReceiveChatMessage is called when the server receives a chat message from a client that is in a chat room
 func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
 	sendChatMsg := new(websock.SendChatMessage)
 	if err := json.Unmarshal(msg.Message, sendChatMsg); err != nil {

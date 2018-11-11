@@ -195,14 +195,14 @@ func (s *Server) LoginUser(ws *websocket.Conn, msg *websock.Message) {
 	// Send auth challenge
 	websock.SendMessage(ws, websock.AuthChallenge, encKey, websock.Bytes)
 
-	// Recieve auth challenge response
+	// Receive auth challenge response
 	res, err := websock.GetResponse(ws)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	// Check that the recieved decrypted key matches the original auth key
+	// Check that the received decrypted key matches the original auth key
 	if newUser.KeyMatches(res.Message) {
 		fmt.Printf("Client %s authenticated as user %s\n", ws.Request().RemoteAddr, newUser.Username)
 		s.AddClient(ws, newUser)

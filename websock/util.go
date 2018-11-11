@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-// SendMessage sends a message to the websocket reciever
+// SendMessage sends a message to the websocket receiver
 func SendMessage(ws *websocket.Conn, msgType MessageType, msg interface{}, format MessageFormat) {
 	var msgData []byte
 

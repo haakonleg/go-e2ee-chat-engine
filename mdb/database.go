@@ -49,7 +49,7 @@ func CreateConnection(mongoURL, dbName string) (*Database, error) {
 	return db, nil
 }
 
-// MakeIndexes creates nessecary indexes and unique constraints for keys in the database
+// MakeIndexes creates necessary indexes and unique constraints for keys in the database
 func (db *Database) MakeIndexes() {
 	// Indexes for users
 	c := db.session.DB(db.dbName).C(Users.String())
