@@ -1,5 +1,6 @@
 # go-e2ee-chat-engine
 
+[![Build Status](https://travis-ci.org/haakonleg/go-e2ee-chat-engine.svg?branch=master)](https://travis-ci.org/haakonleg/go-e2ee-chat-engine)
 [![Go Report Card](https://goreportcard.com/badge/github.com/haakonleg/go-e2ee-chat-engine)](https://goreportcard.com/report/github.com/haakonleg/go-e2ee-chat-engine)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/haakonleg/go-e2ee-chat-engine)
 [![Release](https://img.shields.io/github/release/haakonleg/go-e2ee-chat-engine.svg)](https://github.com/haakonleg/go-e2ee-chat-engine/releases/latest)
