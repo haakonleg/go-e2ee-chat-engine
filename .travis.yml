@@ -1,11 +1,8 @@
 language: go
 go:
 - '1.11'
-
-# Could be enable if we use coverall.io
-#before_script:
-#- go get golang.org/x/tools/cmd/cover
-#- go get github.com/mattn/goveralls
-#script: go test -v -covermode=count -coverprofile=coverage.out ./...
-#after_success: $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci
-#  -repotoken $COVERALLS_TOKEN
+before_script:
+    - go get golang.org/x/tools/cmd/cover
+    - go get github.com/mattn/goveralls
+script: go test -v -covermode=count -coverprofile=coverage.out ./...
+after_success: $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
