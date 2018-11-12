@@ -4,6 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/haakonleg/go-e2ee-chat-engine)](https://goreportcard.com/report/github.com/haakonleg/go-e2ee-chat-engine)
 [![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/haakonleg/go-e2ee-chat-engine)
 [![Release](https://img.shields.io/github/release/haakonleg/go-e2ee-chat-engine.svg)](https://github.com/haakonleg/go-e2ee-chat-engine/releases/latest)
+[![Coverage Status](https://coveralls.io/repos/github/haakonleg/go-e2ee-chat-engine/badge.svg?branch=master)](https://coveralls.io/github/haakonleg/go-e2ee-chat-engine?branch=master)
 
 Golang chat engine backend with end-to-end encryption.
 Project in the course IMT2681 Cloud Technologies, assignment 3.
