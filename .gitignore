@@ -13,3 +13,4 @@
 
 *.pem
 client_log.txt
+.env
