@@ -2,7 +2,6 @@ package server
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
@@ -12,9 +11,8 @@ import (
 // Config describes the server configuration, where the listening port,
 // name of the mongoDB database used by the server, and the mongoDB address
 type Config struct {
-	ListenPort string
-	DBName     string
-	MongoURL   string
+	DBName   string
+	MongoURL string
 }
 
 // Server contains the context of the chat engine server
@@ -39,13 +37,6 @@ func CreateServer(config Config) *Server {
 	}
 
 	return s
-}
-
-// Start starts the HTTP server and listens for incoming websocket connections
-func (s *Server) Start() {
-	// Listen for websocket connections
-	log.Println("Listening for incoming connections...")
-	http.ListenAndServe(":"+s.ListenPort, websocket.Handler(s.WebsockHandler))
 }
 
 // AddClient adds a new client to Users
