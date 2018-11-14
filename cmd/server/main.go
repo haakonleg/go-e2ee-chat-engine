@@ -12,11 +12,19 @@ func main() {
 	if port == "" {
 		log.Fatal("Error: environment variable PORT is not set")
 	}
+	mongoURI := os.Getenv("MONGODB_URI")
+	if mongoURI == "" {
+		log.Fatal("Error: environment variable MONGODB_URI is not set")
+	}
+	dbName := os.Getenv("MONGODB_NAME")
+	if dbName == "" {
+		log.Fatal("Error: environment variable MONGODB_NAME is not set")
+	}
 
 	serverConfig := server.Config{
 		ListenPort: port,
-		DBName:     "go-e2ee-chat-engine",
-		MongoURL:   "mongo:27017"}
+		DBName:     dbName,
+		MongoURL:   mongoURI}
 
 	server := server.CreateServer(serverConfig)
 	server.Start()
