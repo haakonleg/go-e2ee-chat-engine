@@ -1,5 +1,8 @@
 module github.com/haakonleg/go-e2ee-chat-engine
 
+// +heroku goVersion go1.11
+// +heroku install ./cmd/...
+
 require (
 	github.com/gdamore/encoding v0.0.0-20151215212835-b23993cbb635 // indirect
 	github.com/gdamore/tcell v1.1.0
