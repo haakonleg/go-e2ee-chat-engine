@@ -49,6 +49,33 @@ func CreateConnection(mongoURL, dbName string) (*Database, error) {
 	return db, nil
 }
 
+// DeleteAll removes all data inside all collections, but not the information about the
+// collections themselves
+func (db *Database) DeleteAll() {
+	var err error
+
+	// Indexes for users
+	c := db.session.DB(db.dbName).C(Users.String())
+	err = c.DropAllIndexes()
+	if err != nil {
+		log.Printf("Unable to drop indexes of %s: %s\n", Users.String(), err)
+	}
+
+	// Indexes for chat rooms
+	c = db.session.DB(db.dbName).C(ChatRooms.String())
+	err = c.DropAllIndexes()
+	if err != nil {
+		log.Printf("Unable to drop indexes of %s: %s\n", ChatRooms.String(), err)
+	}
+
+	// Indexes for messages
+	c = db.session.DB(db.dbName).C(Messages.String())
+	err = c.DropAllIndexes()
+	if err != nil {
+		log.Printf("Unable to drop indexes of %s: %s\n", Messages.String(), err)
+	}
+}
+
 // MakeIndexes creates necessary indexes and unique constraints for keys in the database
 func (db *Database) MakeIndexes() {
 	// Indexes for users
