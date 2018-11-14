@@ -93,11 +93,13 @@ func (c *Client) loginUserHandler(server string, username string) {
 	c.gui.ShowChatRoomGUI(c)
 }
 
-func (c *Client) createRoomHandler(name string) {
+func (c *Client) createRoomHandler(name, password string, isHidden bool) {
 	// Send request to create new chat room to server
 	req := &websock.CreateChatRoomMessage{
-		Name:    name,
-		AuthKey: c.authKey}
+		Name:     name,
+		Password: password,
+		IsHidden: isHidden,
+		AuthKey:  c.authKey}
 
 	websock.SendMessage(c.sock, websock.CreateChatRoom, req, websock.JSON)
 	if _, err := websock.GetResponse(c.sock); err != nil {
@@ -123,16 +125,18 @@ func (c *Client) getChatRooms() (*websock.GetChatRoomsResponseMessage, error) {
 	return chatRoomsResponse, nil
 }
 
-func (c *Client) joinChatHandler(name string) {
+func (c *Client) joinChatHandler(name, password string) {
 	// Send request to join chat room
 	req := &websock.JoinChatMessage{
-		Name:    name,
-		AuthKey: c.authKey}
+		Name:     name,
+		Password: password,
+		AuthKey:  c.authKey}
 
 	websock.SendMessage(c.sock, websock.JoinChat, req, websock.JSON)
 
 	if _, err := websock.GetResponse(c.sock); err != nil {
 		c.gui.ShowDialog(err.Error())
+		return
 	}
 
 	// Show the chat interface

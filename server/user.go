@@ -151,7 +151,7 @@ func ValidateUsername(username string) error {
 
 // KeyMatches checks that an authentication key matches the one for this user
 func (u *User) KeyMatches(authKey []byte) bool {
-	return bytes.Compare(u.AuthKey, authKey) == 0
+	return bytes.Equal(u.AuthKey, authKey)
 }
 
 // RegisterUser registers a new user, and adds it to the database

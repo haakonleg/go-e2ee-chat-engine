@@ -12,8 +12,8 @@ type GUIConfig struct {
 	ChatRoomsPollInterval int
 	CreateUserHandler     func(server string, username string)
 	LoginUserHandler      func(server string, username string)
-	CreateRoomHandler     func(name string)
-	JoinChatHandler       func(name string)
+	CreateRoomHandler     func(name, password string, isHidden bool)
+	JoinChatHandler       func(name, password string)
 }
 
 type GUI struct {
@@ -31,20 +31,19 @@ func NewGUI(config *GUIConfig) *GUI {
 		app:                   tview.NewApplication()}
 
 	g.loginGUI = &LoginGUI{
-		gui:               g,
+		GUI:               g,
 		DefaultServerText: config.DefaultServerText,
 		CreateUserHandler: config.CreateUserHandler,
 		LoginUserHandler:  config.LoginUserHandler}
 	g.loginGUI.Create()
 
 	g.roomsGUI = &RoomsGUI{
-		gui:               g,
+		GUI:               g,
 		CreateRoomHandler: config.CreateRoomHandler,
 		JoinChatHandler:   config.JoinChatHandler}
 	g.roomsGUI.Create()
 
-	g.chatGUI = &ChatGUI{
-		gui: g}
+	g.chatGUI = &ChatGUI{GUI: g}
 	g.chatGUI.Create()
 
 	g.pages = tview.NewPages().
@@ -95,10 +94,10 @@ func (g *GUI) ShowChatGUI(client *Client) {
 	// Start chat session
 	client.chatSession = &ChatSession{
 		DisconnectFunc: func() { g.ShowChatRoomGUI(client) },
-		OnChatInfo:     g.chatGUI.onChatInfo,
-		OnChatMessage:  g.chatGUI.onChatMessage,
-		OnUserJoined:   g.chatGUI.onUserJoined,
-		OnUserLeft:     g.chatGUI.onUserLeft,
+		OnChatInfo:     g.chatGUI.OnChatInfo,
+		OnChatMessage:  g.chatGUI.OnChatMessage,
+		OnUserJoined:   g.chatGUI.OnUserJoined,
+		OnUserLeft:     g.chatGUI.OnUserLeft,
 		Socket:         client.sock,
 		PrivateKey:     client.privateKey,
 		AuthKey:        client.authKey}

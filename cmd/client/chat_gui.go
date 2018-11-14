@@ -11,10 +11,10 @@ import (
 )
 
 type ChatGUI struct {
+	*GUI
 	SendChatMessageHandler func(message string)
 	LeaveChatHandler       func()
 
-	gui      *GUI
 	layout   *tview.Grid
 	userList *tview.TextView
 	msgView  *tview.TextView
@@ -57,9 +57,10 @@ func (gui *ChatGUI) AddMsgInput() {
 		SetTitleAlign(tview.AlignLeft)
 
 	gui.layout.AddItem(gui.msgInput, 1, 0, 1, 4, 0, 0, true)
-	gui.gui.app.SetFocus(gui.layout)
+	gui.app.SetFocus(gui.layout)
 }
 
+// FormatChatMessage formats a chat message to human readable format
 func formatChatMessage(sender string, message []byte, timestamp int64) []byte {
 	var buf bytes.Buffer
 
@@ -91,11 +92,13 @@ func (gui *ChatGUI) WriteUserList(cs *ChatSession) {
 	}
 }
 
-func (gui *ChatGUI) onChatInfo(err error, cs *ChatSession, chatInfo *websock.ChatInfoMessage) {
-	gui.gui.app.QueueUpdate(func() {
+// OnChatInfo is called whenver a ChatInfo message is received from the server. It is responsible for
+// displaying all chat messages and users from the chat room in the interface
+func (gui *ChatGUI) OnChatInfo(err error, cs *ChatSession, chatInfo *websock.ChatInfoMessage) {
+	gui.app.QueueUpdate(func() {
 		if err != nil {
-			gui.gui.ShowDialog(err.Error())
-			gui.gui.app.Draw()
+			gui.ShowDialog(err.Error())
+			gui.app.Draw()
 			return
 		}
 
@@ -107,29 +110,33 @@ func (gui *ChatGUI) onChatInfo(err error, cs *ChatSession, chatInfo *websock.Cha
 			gui.msgView.Write(fmtMsg)
 			gui.msgView.ScrollToEnd()
 		}
-		gui.gui.app.Draw()
+		gui.app.Draw()
 	})
 }
 
-func (gui *ChatGUI) onChatMessage(err error, cs *ChatSession, chatMessage *websock.ChatMessage) {
-	gui.gui.app.QueueUpdate(func() {
+// OnChatMessage is called whenver a chat message is received from the server. It is responsible for
+// displaying the new chat message in the chat message view
+func (gui *ChatGUI) OnChatMessage(err error, cs *ChatSession, chatMessage *websock.ChatMessage) {
+	gui.app.QueueUpdate(func() {
 		if err != nil {
-			gui.gui.ShowDialog(err.Error())
-			gui.gui.app.Draw()
+			gui.ShowDialog(err.Error())
+			gui.app.Draw()
 			return
 		}
 
 		fmtMsg := formatChatMessage(chatMessage.Sender, chatMessage.Message, chatMessage.Timestamp)
 		gui.msgView.Write(fmtMsg)
-		gui.gui.app.Draw()
+		gui.app.Draw()
 	})
 }
 
-func (gui *ChatGUI) onUserJoined(err error, cs *ChatSession, user *websock.User) {
-	gui.gui.app.QueueUpdate(func() {
+// OnUserJoined is called when the server notifies that a new user has joined. It is responsible for
+// adding the new user to the displayed list of online users
+func (gui *ChatGUI) OnUserJoined(err error, cs *ChatSession, user *websock.User) {
+	gui.app.QueueUpdate(func() {
 		if err != nil {
-			gui.gui.ShowDialog(err.Error())
-			gui.gui.app.Draw()
+			gui.ShowDialog(err.Error())
+			gui.app.Draw()
 			return
 		}
 
@@ -139,22 +146,25 @@ func (gui *ChatGUI) onUserJoined(err error, cs *ChatSession, user *websock.User)
 		buf.WriteString(user.Username)
 		buf.WriteString(" connected\n")
 		gui.msgView.Write(buf.Bytes())
-		gui.gui.app.Draw()
+		gui.app.Draw()
 	})
 }
 
-func (gui *ChatGUI) onUserLeft(cs *ChatSession, username string) {
-	gui.gui.app.QueueUpdate(func() {
+// OnUserLeft is called when the server notifies that a user has left the chat room. It is responsible for
+// removing the user from the displayed list of online users
+func (gui *ChatGUI) OnUserLeft(cs *ChatSession, username string) {
+	gui.app.QueueUpdate(func() {
 		gui.WriteUserList(cs)
 		var buf bytes.Buffer
 		buf.WriteString("[dimgray]")
 		buf.WriteString(username)
 		buf.WriteString(" disconnected\n")
 		gui.msgView.Write(buf.Bytes())
-		gui.gui.app.Draw()
+		gui.app.Draw()
 	})
 }
 
+// KeyHandler is the keyboard input handler for the chat rooms interface
 func (gui *ChatGUI) KeyHandler(key *tcell.EventKey) *tcell.EventKey {
 	if key.Key() == tcell.KeyEsc {
 		gui.LeaveChatHandler()

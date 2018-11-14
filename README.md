@@ -17,7 +17,7 @@ The server will be deployed on Heroku as a Docker image. A simple (command line)
 
 ## Todo
 
-- Add ability to set a password for a chat room.
+- ~~Add ability to set a password for a chat room.~~
 - At the moment, a user cannot see messages that is sent when he is not in a chat room the moment it is sent (because clients in chat rooms are not tracked in the database, but in-memory on the server). Fix this.
 - Allow users to be part of multiple chat rooms (see above).
 - Add a server setting to purge old chat messages after a certain date (to avoid massive amounts of old messages)
