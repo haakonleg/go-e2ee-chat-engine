@@ -59,7 +59,7 @@ func NewGUI(config *GUIConfig) *GUI {
 }
 
 // ShowDialog shows a message dialog to the user
-func (g *GUI) ShowDialog(message string) {
+func (g *GUI) ShowDialog(message string, onDismiss func()) {
 	modal := tview.NewModal()
 	modal.SetText(message).
 		AddButtons([]string{"Ok"}).
@@ -67,6 +67,14 @@ func (g *GUI) ShowDialog(message string) {
 			g.pages.RemovePage("error")
 		}).
 		SetBackgroundColor(tcell.ColorDarkRed)
+
+	if onDismiss != nil {
+		modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Ok" {
+				onDismiss()
+			}
+		})
+	}
 
 	g.pages.AddPage("error", modal, true, true)
 	g.app.SetFocus(modal)
@@ -98,7 +106,8 @@ func (g *GUI) ShowChatGUI(client *Client) {
 		OnChatMessage:  g.chatGUI.OnChatMessage,
 		OnUserJoined:   g.chatGUI.OnUserJoined,
 		OnUserLeft:     g.chatGUI.OnUserLeft,
-		Socket:         client.sock,
+		Reader:         client.wsReader,
+		Socket:         client.ws,
 		PrivateKey:     client.privateKey,
 		AuthKey:        client.authKey}
 

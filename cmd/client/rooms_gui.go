@@ -86,11 +86,11 @@ func (gui *RoomsGUI) validateForm(form *tview.Form) (string, string, bool) {
 
 	// Validate username and password
 	if len(name) < 3 {
-		gui.ShowDialog("Name must be 3 characters or longer")
+		gui.ShowDialog("Name must be 3 characters or longer", nil)
 		return "", "", false
 	}
 	if len(password) != 0 && len(password) < 6 {
-		gui.ShowDialog("Password must be 6 characters or longer")
+		gui.ShowDialog("Password must be 6 characters or longer", nil)
 		return "", "", false
 	}
 
@@ -177,7 +177,7 @@ func (gui *RoomsGUI) passwordPopup(onDone func(password string)) {
 		case tcell.KeyEnter:
 			password := pwdInput.GetText()
 			if len(password) < 6 {
-				gui.ShowDialog("Password must be 6 characters or longer")
+				gui.ShowDialog("Password must be 6 characters or longer", nil)
 				return
 			}
 			onDone(password)
@@ -221,7 +221,7 @@ func (gui *RoomsGUI) updateChatRooms(client *Client) {
 
 		gui.app.QueueUpdate(func() {
 			if err != nil {
-				gui.ShowDialog(err.Error())
+				gui.ShowDialog(err.Error(), nil)
 				gui.app.Draw()
 				return
 			}

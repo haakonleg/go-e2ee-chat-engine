@@ -7,10 +7,9 @@ import (
 	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
+	"golang.org/x/net/websocket"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
-
-	"golang.org/x/net/websocket"
 )
 
 // ChatSession contains the context and callback methods of a chat session
@@ -20,6 +19,7 @@ type ChatSession struct {
 	OnChatMessage  func(error, *ChatSession, *websock.ChatMessage)
 	OnUserJoined   func(error, *ChatSession, *websock.User)
 	OnUserLeft     func(*ChatSession, string)
+	Reader         *WSReader
 	Socket         *websocket.Conn
 	PrivateKey     *rsa.PrivateKey
 	AuthKey        []byte
@@ -34,7 +34,7 @@ func (cs *ChatSession) StartChatSession() {
 
 Loop:
 	for {
-		msg, err := websock.GetResponse(cs.Socket)
+		msg, err := cs.Reader.GetNext()
 		if err != nil {
 			log.Println(err)
 			break

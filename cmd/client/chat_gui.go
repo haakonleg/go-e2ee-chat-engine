@@ -97,7 +97,7 @@ func (gui *ChatGUI) WriteUserList(cs *ChatSession) {
 func (gui *ChatGUI) OnChatInfo(err error, cs *ChatSession, chatInfo *websock.ChatInfoMessage) {
 	gui.app.QueueUpdate(func() {
 		if err != nil {
-			gui.ShowDialog(err.Error())
+			gui.ShowDialog(err.Error(), nil)
 			gui.app.Draw()
 			return
 		}
@@ -119,7 +119,7 @@ func (gui *ChatGUI) OnChatInfo(err error, cs *ChatSession, chatInfo *websock.Cha
 func (gui *ChatGUI) OnChatMessage(err error, cs *ChatSession, chatMessage *websock.ChatMessage) {
 	gui.app.QueueUpdate(func() {
 		if err != nil {
-			gui.ShowDialog(err.Error())
+			gui.ShowDialog(err.Error(), nil)
 			gui.app.Draw()
 			return
 		}
@@ -135,7 +135,7 @@ func (gui *ChatGUI) OnChatMessage(err error, cs *ChatSession, chatMessage *webso
 func (gui *ChatGUI) OnUserJoined(err error, cs *ChatSession, user *websock.User) {
 	gui.app.QueueUpdate(func() {
 		if err != nil {
-			gui.ShowDialog(err.Error())
+			gui.ShowDialog(err.Error(), nil)
 			gui.app.Draw()
 			return
 		}

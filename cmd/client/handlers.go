@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
@@ -25,11 +26,11 @@ func (c *Client) createUserHandler(server string, username string) {
 		Username:  username,
 		PublicKey: util.MarshalPublic(pubKey)}
 
-	websock.SendMessage(c.sock, websock.RegisterUser, regUserMsg, websock.JSON)
+	websock.SendMessage(c.ws, websock.RegisterUser, regUserMsg, websock.JSON)
 
-	res, err := websock.GetResponse(c.sock)
+	res, err := c.wsReader.GetNext()
 	if err != nil {
-		c.gui.ShowDialog("Did not get a response from the server")
+		c.gui.ShowDialog("Did not get a response from the server", nil)
 		return
 	}
 
@@ -38,7 +39,7 @@ func (c *Client) createUserHandler(server string, username string) {
 		savePrivKey(username, privKey)
 	}
 
-	c.gui.ShowDialog("User created. You can now log in.")
+	c.gui.ShowDialog("User created. You can now log in.", nil)
 }
 
 // Called when the user pressed the "login user" button
@@ -51,41 +52,44 @@ func (c *Client) loginUserHandler(server string, username string) {
 	// Read private key from file
 	pem, err := ioutil.ReadFile(username + ".pem")
 	if err != nil {
-		c.gui.ShowDialog("Error reading privatekey.pem file")
+		c.gui.ShowDialog("Error reading privatekey.pem file", nil)
 		return
 	}
 
 	privKey, err := util.UnmarshalPrivate(pem)
 	if err != nil {
-		c.gui.ShowDialog("Error parsing private key")
+		c.gui.ShowDialog("Error parsing private key", nil)
 		return
 	}
 
 	// Send log in request to server
-	websock.SendMessage(c.sock, websock.LoginUser, username, websock.String)
+	websock.SendMessage(c.ws, websock.LoginUser, username, websock.String)
 
 	// Receive auth challenge from server
-	res, err := websock.GetResponse(c.sock)
+	res, err := c.wsReader.GetNext()
 	if err != nil {
-		c.gui.ShowDialog(err.Error())
+		c.gui.ShowDialog(err.Error(), nil)
 		return
 	}
+	log.Println(res)
 
 	// Try to decrypt auth challenge
 	decKey, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, res.Message)
 	if err != nil {
-		c.gui.ShowDialog("Invalid private key")
+		c.gui.ShowDialog("Invalid private key", nil)
 		return
 	}
+	log.Println(decKey)
 
 	// Send decrypted auth key to server
-	websock.SendMessage(c.sock, websock.AuthChallengeResponse, decKey, websock.Bytes)
+	websock.SendMessage(c.ws, websock.AuthChallengeResponse, decKey, websock.Bytes)
 
 	// Check response from server
-	if res, err = websock.GetResponse(c.sock); err != nil || res.Type != websock.MessageOK {
-		c.gui.ShowDialog("Invalid private key")
+	if res, err = c.wsReader.GetNext(); err != nil {
+		c.gui.ShowDialog("Invalid private key", nil)
 		return
 	}
+	log.Println(res)
 
 	// Login success, show the chat rooms GUI
 	c.privateKey = privKey
@@ -101,18 +105,18 @@ func (c *Client) createRoomHandler(name, password string, isHidden bool) {
 		IsHidden: isHidden,
 		AuthKey:  c.authKey}
 
-	websock.SendMessage(c.sock, websock.CreateChatRoom, req, websock.JSON)
-	if _, err := websock.GetResponse(c.sock); err != nil {
-		c.gui.ShowDialog(err.Error())
+	websock.SendMessage(c.ws, websock.CreateChatRoom, req, websock.JSON)
+	if _, err := websock.GetResponse(c.ws); err != nil {
+		c.gui.ShowDialog(err.Error(), nil)
 	}
 }
 
 func (c *Client) getChatRooms() (*websock.GetChatRoomsResponseMessage, error) {
 	// Send request for chat rooms
-	websock.SendMessage(c.sock, websock.GetChatRooms, nil, websock.Nil)
+	websock.SendMessage(c.ws, websock.GetChatRooms, nil, websock.Nil)
 
 	// Get chat rooms response from server
-	res, err := websock.GetResponse(c.sock)
+	res, err := c.wsReader.GetNext()
 	if err != nil {
 		return nil, err
 	}
@@ -132,10 +136,10 @@ func (c *Client) joinChatHandler(name, password string) {
 		Password: password,
 		AuthKey:  c.authKey}
 
-	websock.SendMessage(c.sock, websock.JoinChat, req, websock.JSON)
+	websock.SendMessage(c.ws, websock.JoinChat, req, websock.JSON)
 
-	if _, err := websock.GetResponse(c.sock); err != nil {
-		c.gui.ShowDialog(err.Error())
+	if _, err := c.wsReader.GetNext(); err != nil {
+		c.gui.ShowDialog(err.Error(), nil)
 		return
 	}
 
