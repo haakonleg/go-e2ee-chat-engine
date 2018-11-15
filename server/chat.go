@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
@@ -14,13 +13,7 @@ import (
 )
 
 // CreateChatRoom creates a new chat room, and adds it to the database
-func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.Message) {
-	createChatRoomMsg := new(websock.CreateChatRoomMessage)
-	if err := json.Unmarshal(msg.Message, createChatRoomMsg); err != nil {
-		websock.InvalidFormat(ws)
-		return
-	}
-
+func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.CreateChatRoomMessage) {
 	user, ok := s.Users.Get(ws)
 	if !ok || user == nil {
 		log.Print("Websocket was not associated with a user")
@@ -29,25 +22,14 @@ func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.Message) {
 	user.Lock()
 	defer user.Unlock()
 
-	// Check that authentication key is correct
-	if !user.KeyMatches(createChatRoomMsg.AuthKey) {
-		websock.InvalidAuth(ws)
-		return
-	}
-
-	if len(createChatRoomMsg.Name) < 3 {
-		websock.SendMessage(ws, websock.Error, "Name must be 3 characters or longer", websock.String)
-		return
-	}
-
 	// Add the chat room to the database
-	chat := mdb.NewChat(createChatRoomMsg.Name, createChatRoomMsg.Password, createChatRoomMsg.IsHidden)
+	chat := mdb.NewChat(msg.Name, msg.Password, msg.IsHidden)
 	if err := s.Db.Insert(mdb.ChatRooms, chat); err != nil {
-		websock.SendMessage(ws, websock.Error, "Error creating chat room", websock.String)
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Error creating chat room"})
 		return
 	}
 
-	websock.SendMessage(ws, websock.MessageOK, "Chat room created", websock.String)
+	websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "Chat room created"})
 }
 
 // GetChatRooms returns all non-hidden chat rooms to the websocket client
@@ -70,56 +52,44 @@ func (s *Server) GetChatRooms(ws *websocket.Conn) {
 			OnlineUsers: s.Users.LenInChat(room.Name)})
 	}
 
-	websock.SendMessage(ws, websock.GetChatRoomsResponse, response, websock.JSON)
+	websock.Msg.Send(ws, &websock.Message{Type: websock.GetChatRoomsResponse, Message: response})
 }
 
 // JoinChat assigns a client to a chat room
-func (s *Server) JoinChat(ws *websocket.Conn, msg *websock.Message) {
-	joinChatMsg := new(websock.JoinChatMessage)
-	if err := json.Unmarshal(msg.Message, joinChatMsg); err != nil {
-		websock.InvalidFormat(ws)
-		return
-	}
-
+func (s *Server) JoinChat(ws *websocket.Conn, msg *websock.JoinChatMessage) {
 	// Check that user is logged in
 	user, ok := s.Users.Get(ws)
 	if !ok || user == nil {
-		websock.SendMessage(ws, websock.Error, "Not logged in", websock.String)
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Not logged in"})
 		return
 	}
 	user.Lock()
 	defer user.Unlock()
 
-	// Check that authentication key is correct
-	if !user.KeyMatches(joinChatMsg.AuthKey) {
-		websock.InvalidAuth(ws)
-		return
-	}
-
 	// Check that user is not already in a chat room
 	if user.ChatRoom != "" {
-		websock.SendMessage(ws, websock.Error, "You are already in a chat room", websock.String)
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "You are already in a chat room"})
 		return
 	}
 
 	// Retrieve the chat room from database
 	chat := new(mdb.Chat)
-	if err := s.Db.FindOne(mdb.ChatRooms, bson.M{"name": joinChatMsg.Name}, nil, chat); err != nil {
-		websock.SendMessage(ws, websock.Error, "This chat room does not exist", websock.String)
+	if err := s.Db.FindOne(mdb.ChatRooms, bson.M{"name": msg.Name}, nil, chat); err != nil {
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "This chat room does not exist"})
 		return
 	}
 
 	// Verify password (if necessary)
-	if len(chat.PasswordHash) != 0 && !chat.ValidPassword(joinChatMsg.Password) {
-		websock.SendMessage(ws, websock.Error, "Invalid password", websock.String)
+	if len(chat.PasswordHash) != 0 && !chat.ValidPassword(msg.Password) {
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Invalid password"})
 		return
 	}
 
 	// Add user to chat room
-	user.ChatRoom = joinChatMsg.Name
-	websock.SendMessage(ws, websock.MessageOK, "Joined chat", websock.String)
+	user.ChatRoom = msg.Name
+	websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "Joined chat"})
 
-	s.ClientJoinedChat(ws, user, joinChatMsg.Name)
+	s.ClientJoinedChat(ws, user, msg.Name)
 }
 
 // ClientJoinedChat is called when a client joins a chat room, it adds the username of the client
@@ -158,7 +128,7 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, user *User, chatName strin
 			Message:   message.MessageContent[0].Content})
 	}
 
-	go websock.SendMessage(ws, websock.ChatInfo, chatInfo, websock.JSON)
+	go websock.Msg.Send(ws, &websock.Message{Type: websock.ChatInfo, Message: chatInfo})
 
 	// Notify other clients in the chat that a new user has joined
 	s.NotifyUserJoined(user, chatName)
@@ -180,7 +150,7 @@ func (s *Server) ClientLeftChat(ws *websocket.Conn) {
 	username := user.Username
 	user.ChatRoom = ""
 
-	go websock.SendMessage(ws, websock.UserLeft, username, websock.String)
+	go websock.Msg.Send(ws, &websock.Message{Type: websock.UserLeft, Message: username})
 	// Notify clients that this user left the chat
 	go s.NotifyUserLeft(username, chatName)
 }
@@ -206,12 +176,7 @@ func (s *Server) FindMessagesForUser(username, chatName string) []*mdb.Message {
 }
 
 // ReceiveChatMessage is called when the server receives a chat message from a client that is in a chat room
-func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
-	sendChatMsg := new(websock.SendChatMessage)
-	if err := json.Unmarshal(msg.Message, sendChatMsg); err != nil {
-		websock.InvalidFormat(ws)
-		return
-	}
+func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.SendChatMessage) {
 	user, ok := s.Users.Get(ws)
 	if !ok || user == nil {
 		log.Print("Websocket was not associated with a user")
@@ -220,24 +185,18 @@ func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.Message) {
 	user.Lock()
 	defer user.Unlock()
 
-	// Check that authentication key is correct
-	if !user.KeyMatches(sendChatMsg.AuthKey) {
-		websock.InvalidAuth(ws)
-		return
-	}
-
 	// Check that the client is actually in a chat room
 	if user.ChatRoom == "" {
-		websock.SendMessage(ws, websock.Error, "You are not in a chat room", websock.String)
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "You are not in a chat room"})
 		return
 	}
 
-	websock.SendMessage(ws, websock.MessageOK, "Message sent", websock.String)
+	websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "Message sent"})
 
 	// Notify everyone in the chat room about the new chat message, and store the message in the database
 	timestamp := util.NowMillis()
-	go s.NotifyChatMessage(user.Username, user.ChatRoom, timestamp, sendChatMsg.EncryptedContent)
-	go s.AddMessageToDB(user.Username, user.ChatRoom, timestamp, sendChatMsg.EncryptedContent)
+	go s.NotifyChatMessage(user.Username, user.ChatRoom, timestamp, msg.EncryptedContent)
+	go s.AddMessageToDB(user.Username, user.ChatRoom, timestamp, msg.EncryptedContent)
 }
 
 // NotifyChatMessage notifies all clients in a chat room about a new chat message
@@ -252,7 +211,7 @@ func (s *Server) NotifyChatMessage(sender string, chatName string, timestamp int
 			Timestamp: timestamp,
 			Message:   encryptedContent[recipent.Username]}
 
-		go websock.SendMessage(client, websock.ChatMessageReceived, msg, websock.JSON)
+		go websock.Msg.Send(client, &websock.Message{Type: websock.ChatMessageReceived, Message: msg})
 	})
 }
 
@@ -268,7 +227,7 @@ func (s *Server) NotifyUserJoined(user *User, chatName string) {
 		}
 		otherUser.Lock()
 		defer otherUser.Unlock()
-		go websock.SendMessage(client, websock.UserJoined, msg, websock.JSON)
+		go websock.Msg.Send(client, &websock.Message{Type: websock.UserJoined, Message: msg})
 	})
 }
 
@@ -276,7 +235,7 @@ func (s *Server) NotifyUserJoined(user *User, chatName string) {
 func (s *Server) NotifyUserLeft(username, chatName string) {
 	// Get all clients in the chat room
 	s.Users.ForEachInChat(chatName, func(client *websocket.Conn, _ *User) {
-		go websock.SendMessage(client, websock.UserLeft, username, websock.String)
+		go websock.Msg.Send(client, &websock.Message{Type: websock.UserLeft, Message: username})
 	})
 }
 

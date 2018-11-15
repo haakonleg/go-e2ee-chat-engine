@@ -30,10 +30,11 @@ type WSReader struct {
 func (wr *WSReader) Reader() {
 	for {
 		msg := new(websock.Message)
-		if err := websocket.JSON.Receive(wr.Ws, msg); err != nil {
+		if err := websock.Msg.Receive(wr.Ws, msg); err != nil {
+			log.Println(err)
 			break
 		} else if msg.Type == websock.Error {
-			wr.c <- Result{Message: nil, Err: errors.New(string(msg.Message))}
+			wr.c <- Result{Message: nil, Err: errors.New(msg.Message.(string))}
 		} else {
 			wr.c <- Result{Message: msg, Err: nil}
 		}
@@ -58,8 +59,11 @@ type Client struct {
 }
 
 func (c *Client) Disconnected() {
-	c.gui.ShowDialog("Disconnected from server", func() {
-		c.gui.app.Stop()
+	c.gui.app.QueueUpdate(func() {
+		c.gui.ShowDialog("Disconnected from server", func() {
+			c.gui.app.Stop()
+		})
+		c.gui.app.Draw()
 	})
 }
 

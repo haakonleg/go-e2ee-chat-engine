@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/json"
 	"log"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
@@ -42,37 +41,31 @@ Loop:
 
 		switch msg.Type {
 		case websock.ChatInfo:
-			chatInfo := new(websock.ChatInfoMessage)
-			if err = json.Unmarshal(msg.Message, chatInfo); err == nil {
-				cs.username = chatInfo.MyUsername
+			chatInfo := msg.Message.(*websock.ChatInfoMessage)
+			cs.username = chatInfo.MyUsername
 
-				// Decrypt chat messages
-				err = cs.DecryptChatMessages(chatInfo.Messages...)
+			// Decrypt chat messages
+			err = cs.DecryptChatMessages(chatInfo.Messages...)
 
-				// Add users to the user list
-				for i := range chatInfo.Users {
-					cs.users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
-				}
+			// Add users to the user list
+			for i := range chatInfo.Users {
+				cs.users[chatInfo.Users[i].Username] = &chatInfo.Users[i]
 			}
 			cs.OnChatInfo(err, cs, chatInfo)
 
 		case websock.ChatMessageReceived:
-			chatMessage := new(websock.ChatMessage)
-			if err = json.Unmarshal(msg.Message, chatMessage); err == nil {
-				err = cs.DecryptChatMessages(chatMessage)
-			}
+			chatMessage := msg.Message.(*websock.ChatMessage)
+			cs.DecryptChatMessages(chatMessage)
 			cs.OnChatMessage(err, cs, chatMessage)
 
 		case websock.UserJoined:
-			user := new(websock.User)
-			if err = json.Unmarshal(msg.Message, user); err == nil {
-				cs.users[user.Username] = user
-			}
+			user := msg.Message.(*websock.User)
+			cs.users[user.Username] = user
 			cs.OnUserJoined(err, cs, user)
 
 		case websock.UserLeft:
 			// Remove user from the user list
-			username := string(msg.Message)
+			username := msg.Message.(string)
 
 			// If the user who left is me, quit the chat
 			if username == cs.username {
@@ -104,8 +97,7 @@ func (cs *ChatSession) DecryptChatMessages(chatMessages ...*websock.ChatMessage)
 // The message is encrypted with every participants public key, and sent to the server
 func (cs *ChatSession) SendChatMessage(message string) {
 	req := &websock.SendChatMessage{
-		EncryptedContent: make(map[string][]byte),
-		AuthKey:          cs.AuthKey}
+		EncryptedContent: make(map[string][]byte)}
 
 	// For every user in the chat, encrypt the message with their public key
 	for _, user := range cs.users {
@@ -122,11 +114,11 @@ func (cs *ChatSession) SendChatMessage(message string) {
 		req.EncryptedContent[user.Username] = encMsg
 	}
 
-	websock.SendMessage(cs.Socket, websock.SendChat, req, websock.JSON)
+	websock.Msg.Send(cs.Socket, &websock.Message{Type: websock.SendChat, Message: req})
 }
 
 // LeaveChat is called when a user decides to leave a chat room. The client sends a message
 // notifying the server that the client has left the chat room.
 func (cs *ChatSession) LeaveChat() {
-	websock.SendMessage(cs.Socket, websock.LeaveChat, nil, websock.Nil)
+	websock.Msg.Send(cs.Socket, &websock.Message{Type: websock.LeaveChat})
 }
