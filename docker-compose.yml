@@ -14,6 +14,7 @@ services:
       - PORT=5000
       - MONGODB_URI=mongo:27017
       - MONGODB_NAME=go-e2ee-chat-engine
+      - FORCE_TLS=no
     ports:
       - '5000:5000'
     depends_on:
