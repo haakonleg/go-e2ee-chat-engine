@@ -46,6 +46,10 @@ const (
 	Pong
 )
 
+// FIXME perhaps create a new message type called AuthMessage which always
+// contains the authentication key. This would make it easier to always check
+// that a user is authenticated when he/shes expected to be.
+
 // Message is the "base" message which is used for all websocket messages
 // Type contains the type of the message (one of the MessageType enums)
 // Message contains the actual content of the message, which can be a string, byte slice, a struct, or nil.

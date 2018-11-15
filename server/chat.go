@@ -13,15 +13,7 @@ import (
 )
 
 // CreateChatRoom creates a new chat room, and adds it to the database
-func (s *Server) CreateChatRoom(ws *websocket.Conn, msg *websock.CreateChatRoomMessage) {
-	user, ok := s.Users.Get(ws)
-	if !ok || user == nil {
-		log.Print("Websocket was not associated with a user")
-		return
-	}
-	user.Lock()
-	defer user.Unlock()
-
+func (s *Server) CreateChatRoom(ws *websocket.Conn, user *User, msg *websock.CreateChatRoomMessage) {
 	// Add the chat room to the database
 	chat := mdb.NewChat(msg.Name, msg.Password, msg.IsHidden)
 	if err := s.Db.Insert(mdb.ChatRooms, chat); err != nil {
@@ -41,30 +33,23 @@ func (s *Server) GetChatRooms(ws *websocket.Conn) {
 		return
 	}
 
+	// TODO properly calculate users in a chatroom
 	response := &websock.GetChatRoomsResponseMessage{
-		TotalConnected: s.Users.Len(),
+		TotalConnected: 0,
 		Rooms:          make([]websock.Room, 0, len(results))}
 
 	for _, room := range results {
 		response.Rooms = append(response.Rooms, websock.Room{
 			Name:        room.Name,
 			HasPassword: len(room.PasswordHash) != 0,
-			OnlineUsers: s.Users.LenInChat(room.Name)})
+			OnlineUsers: 0})
 	}
 
 	websock.Msg.Send(ws, &websock.Message{Type: websock.GetChatRoomsResponse, Message: response})
 }
 
 // JoinChat assigns a client to a chat room
-func (s *Server) JoinChat(ws *websocket.Conn, msg *websock.JoinChatMessage) {
-	// Check that user is logged in
-	user, ok := s.Users.Get(ws)
-	if !ok || user == nil {
-		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Not logged in"})
-		return
-	}
-	user.Lock()
-	defer user.Unlock()
+func (s *Server) JoinChat(ws *websocket.Conn, user *User, msg *websock.JoinChatMessage) {
 
 	// Check that user is not already in a chat room
 	if user.ChatRoom != "" {
@@ -104,16 +89,10 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, user *User, chatName strin
 			PublicKey: util.MarshalPublic(user.PublicKey)}},
 		Messages: make([]*websock.ChatMessage, 0)}
 
-	s.Users.ForEachInChat(chatName, func(client *websocket.Conn, otherUser *User) {
-		if otherUser == user {
-			return
-		}
-		otherUser.Lock()
-		defer otherUser.Unlock()
-		chatInfo.Users = append(chatInfo.Users, websock.User{
-			Username:  otherUser.Username,
-			PublicKey: util.MarshalPublic(otherUser.PublicKey)})
-	})
+	// TODO get all users in the given chatroom and add them to the Users list
+	//chatInfo.Users = append(chatInfo.Users, websock.User{
+	//	Username:  otherUser.Username,
+	//	PublicKey: util.MarshalPublic(otherUser.PublicKey)})
 
 	// Add the chat messages addressed to this user
 	for _, message := range s.FindMessagesForUser(user.Username, chatName) {
@@ -137,19 +116,12 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, user *User, chatName strin
 // ClientLeftChat is called when a client leaves a chat room, it removes the username of the client
 // from the map of chat rooms and the chat room name from the User object. Other clients in the chat
 // will be notfied that this user left the chat as well
-func (s *Server) ClientLeftChat(ws *websocket.Conn) {
-	user, ok := s.Users.Get(ws)
-	if !ok || user == nil {
-		log.Print("Websocket was not associated with a user")
-		return
-	}
-	user.Lock()
-	defer user.Unlock()
-
+func (s *Server) ClientLeftChat(ws *websocket.Conn, user *User) {
 	chatName := user.ChatRoom
 	username := user.Username
 	user.ChatRoom = ""
 
+	// TODO notify others that a client left a chat
 	go websock.Msg.Send(ws, &websock.Message{Type: websock.UserLeft, Message: username})
 	// Notify clients that this user left the chat
 	go s.NotifyUserLeft(username, chatName)
@@ -176,14 +148,7 @@ func (s *Server) FindMessagesForUser(username, chatName string) []*mdb.Message {
 }
 
 // ReceiveChatMessage is called when the server receives a chat message from a client that is in a chat room
-func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.SendChatMessage) {
-	user, ok := s.Users.Get(ws)
-	if !ok || user == nil {
-		log.Print("Websocket was not associated with a user")
-		return
-	}
-	user.Lock()
-	defer user.Unlock()
+func (s *Server) ReceiveChatMessage(ws *websocket.Conn, user *User, msg *websock.SendChatMessage) {
 
 	// Check that the client is actually in a chat room
 	if user.ChatRoom == "" {
@@ -201,42 +166,29 @@ func (s *Server) ReceiveChatMessage(ws *websocket.Conn, msg *websock.SendChatMes
 
 // NotifyChatMessage notifies all clients in a chat room about a new chat message
 func (s *Server) NotifyChatMessage(sender string, chatName string, timestamp int64, encryptedContent map[string][]byte) {
+	// TODO Notify the clients in the chat room
+	//msg := &websock.ChatMessage{
+	//	Sender:    sender,
+	//	Timestamp: timestamp,
+	//	Message:   encryptedContent[recipent.Username]}
 
-	// Notify the clients in the chat room
-	s.Users.ForEachInChat(chatName, func(client *websocket.Conn, recipent *User) {
-		recipent.Lock()
-		defer recipent.Unlock()
-		msg := &websock.ChatMessage{
-			Sender:    sender,
-			Timestamp: timestamp,
-			Message:   encryptedContent[recipent.Username]}
-
-		go websock.Msg.Send(client, &websock.Message{Type: websock.ChatMessageReceived, Message: msg})
-	})
+	//go websock.SendMessage(client, websock.ChatMessageReceived, msg, websock.JSON)
 }
 
 // NotifyUserJoined notifies all clients in a chat room that a new user has joined the chat room
 func (s *Server) NotifyUserJoined(user *User, chatName string) {
-	msg := &websock.User{
-		Username:  user.Username,
-		PublicKey: util.MarshalPublic(user.PublicKey)}
+	//msg := &websock.User{
+	//	Username:  user.Username,
+	//	PublicKey: util.MarshalPublic(user.PublicKey)}
 
-	go s.Users.ForEachInChat(chatName, func(client *websocket.Conn, otherUser *User) {
-		if otherUser == user {
-			return
-		}
-		otherUser.Lock()
-		defer otherUser.Unlock()
-		go websock.Msg.Send(client, &websock.Message{Type: websock.UserJoined, Message: msg})
-	})
+	// TODO send message to other user that a new user joined the chat
+	// go websock.Msg.Send(client, &websock.Message{Type: websock.UserJoined, Message: msg})
 }
 
 // NotifyUserLeft notifies all clients in a chat room that a user left the chat room
 func (s *Server) NotifyUserLeft(username, chatName string) {
-	// Get all clients in the chat room
-	s.Users.ForEachInChat(chatName, func(client *websocket.Conn, _ *User) {
-		go websock.Msg.Send(client, &websock.Message{Type: websock.UserLeft, Message: username})
-	})
+	// TODO Get all clients in the chat room
+	// go websock.Msg.Send(client, &websock.Message{Type: websock.UserLeft, Message: username})
 }
 
 // AddMessageToDB inserts a chat message into the database
