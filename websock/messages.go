@@ -26,6 +26,10 @@ const (
 	UserJoined
 	UserLeft
 	LeaveChat
+
+	// Keepalive messages
+	Ping
+	Pong
 )
 
 // Message is the "base" message which is used for all websocket messages

@@ -2,6 +2,8 @@ package server
 
 import (
 	"log"
+	"sync/atomic"
+	"time"
 
 	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
@@ -11,8 +13,9 @@ import (
 // Config describes the server configuration, where the listening port,
 // name of the mongoDB database used by the server, and the mongoDB address
 type Config struct {
-	DBName   string
-	MongoURL string
+	DBName    string
+	MongoURL  string
+	Keepalive int
 }
 
 // Server contains the context of the chat engine server
@@ -68,6 +71,8 @@ func (s *Server) WebsockHandler(ws *websocket.Conn) {
 	s.AddClient(ws, nil)
 	log.Printf("Client connected: %s. Total connected: %d", ws.Request().RemoteAddr, s.Users.Len())
 
+	pinger, pongCount := s.Pinger(ws)
+
 	// Listen for messages from unauthenticated clients
 NoAuth:
 	for {
@@ -87,6 +92,9 @@ NoAuth:
 			if s.LoginUser(ws, msg.Message.(string)) {
 				break NoAuth
 			}
+		case websock.Pong:
+			log.Printf("Receive pong from %s", ws.Request().RemoteAddr)
+			atomic.AddInt64(pongCount, 1)
 		}
 	}
 
@@ -111,10 +119,37 @@ NoAuth:
 			s.ReceiveChatMessage(ws, msg.Message.(*websock.SendChatMessage))
 		case websock.LeaveChat:
 			s.ClientLeftChat(ws)
+		case websock.Pong:
+			log.Printf("Receive pong from %s", ws.Request().RemoteAddr)
+			atomic.AddInt64(pongCount, 1)
 		}
 	}
 
 Disconnect:
+	pinger.Stop()
+	ws.Close()
 	s.RemoveClient(ws)
 	log.Printf("Client disconnected: %s. Total connected: %d\n", ws.Request().RemoteAddr, s.Users.Len())
+}
+
+// Pinger sends a ping message to the client in the interval specified in Keepalive in the ServerConfig
+// If no pongs were received during the elapsed time, the server will close the client connection.
+func (s *Server) Pinger(ws *websocket.Conn) (*time.Ticker, *int64) {
+	ticker := time.NewTicker(time.Duration(s.Keepalive) * time.Second)
+	pongCount := int64(1)
+
+	go func() {
+		for range ticker.C {
+			if atomic.LoadInt64(&pongCount) == 0 {
+				log.Printf("Client %s did not respond to ping in time", ws.Request().RemoteAddr)
+				ws.Close()
+				return
+			}
+
+			websock.Msg.Send(ws, &websock.Message{Type: websock.Ping})
+			atomic.StoreInt64(&pongCount, 0)
+		}
+	}()
+
+	return ticker, &pongCount
 }
