@@ -7,6 +7,8 @@ import (
 	"log"
 )
 
+const subscriberSinkSize = 3
+
 // ChatRoom contains the information about the clients in a chatroom and has
 // the responsibility to distribute messages to the corrent correspondent
 type ChatRoom struct {
@@ -45,7 +47,7 @@ func (room *ChatRoom) Run() {
 
 // Register registers a user to receive events from the chatroom
 func (room *ChatRoom) Register(username string, pubKey *rsa.PublicKey) <-chan websock.Message {
-	sink := make(chan websock.Message, 3)
+	sink := make(chan websock.Message, subscriberSinkSize)
 	room.register <- struct {
 		username string
 		sink     chan<- websock.Message
