@@ -38,6 +38,7 @@ type ChatRoom struct {
 		username string
 		msg      websock.Message
 	}
+	stop chan struct{}
 }
 
 // NewChatRoom returns a new chatroom with the given name
@@ -59,6 +60,7 @@ func NewChatRoom(name string) ChatRoom {
 			username string
 			msg      websock.Message
 		}, publisherSize),
+		make(chan struct{}),
 	}
 }
 
@@ -88,8 +90,17 @@ func (room *ChatRoom) Run() {
 				Type:    websock.UserLeft,
 				Message: username,
 			})
+		case <-room.stop:
+			log.Printf("Shutting down chat ('%s')\n", room.Name)
+			// TODO store state to mongo
+			return
 		}
 	}
+}
+
+// Stop the chatroom eventloop
+func (room *ChatRoom) Stop() {
+	room.stop <- struct{}{}
 }
 
 // Subscribe registers a user to receive events from the chatroom
