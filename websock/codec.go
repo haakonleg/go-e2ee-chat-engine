@@ -48,10 +48,6 @@ func unmarshalMessage(data []byte, payloadType byte, v interface{}) error {
 		return errors.New("Input to unmarshalMessage was not of type *Message")
 	}
 
-	if payloadType != websocket.TextFrame {
-		return errors.New("Did not receive a text frame")
-	}
-
 	reader := bytes.NewReader(data)
 	dec := gob.NewDecoder(reader)
 	if err := dec.Decode(msg); err != nil {
@@ -88,7 +84,7 @@ func checkType(v interface{}, msgType MessageType) error {
 			return errors.New("Expected message type *CreateChatRoomMessage")
 		}
 
-	case GetChatRooms, LeaveChat:
+	case GetChatRooms, LeaveChat, Ping, Pong:
 		if v != nil {
 			return errors.New("Expected message to be nil")
 		}

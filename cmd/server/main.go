@@ -44,8 +44,9 @@ func main() {
 	checkEnvVars()
 
 	serverConfig := server.Config{
-		DBName:   envVars["MONGODB_NAME"],
-		MongoURL: envVars["MONGODB_URI"]}
+		DBName:    envVars["MONGODB_NAME"],
+		MongoURL:  envVars["MONGODB_URI"],
+		Keepalive: 15}
 
 	server := server.CreateServer(serverConfig)
 
