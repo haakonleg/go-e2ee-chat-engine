@@ -87,7 +87,9 @@ func (room *ChatRoom) broadcastChatMessage(sender string, timestamp int64, encCo
 		}
 
 		chatmsg.Message = content
-		msg := websock.Message{websock.ChatMessageReceived, chatmsg}
+		msg := websock.Message{
+			Type:    websock.ChatMessageReceived,
+			Message: chatmsg}
 		room.trySendEvent(username, user.sink, msg)
 	}
 }
@@ -97,20 +99,23 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 
 	if _, ok := room.subscribers[username]; ok {
 		log.Printf("User (%s) tried to subscribe to a chatroom multiple times\n", username)
-		sink <- websock.Message{websock.Error, nil}
+		sink <- websock.Message{
+			Type:    websock.Error,
+			Message: "Username is already a part of the chat"}
+
 		close(sink)
 		return
 	}
 
 	websockuser := websock.User{
-		username,
-		util.MarshalPublic(pubKey),
+		Username:  username,
+		PublicKey: util.MarshalPublic(pubKey),
 	}
 
 	// Warn all current subscribers that a user joined
 	evt := websock.Message{
-		websock.UserJoined,
-		websockuser,
+		Type:    websock.UserJoined,
+		Message: websockuser,
 	}
 
 	// TODO send chatinfo message to user registrating
@@ -125,7 +130,9 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 	// successfully sent message
 	for otherusername, otheruser := range room.subscribers {
 		if room.trySendEvent(otherusername, otheruser.sink, evt) {
-			chatInfo.Users = append(chatInfo.Users, websock.User{otherusername, util.MarshalPublic(otheruser.pubKey)})
+			chatInfo.Users = append(chatInfo.Users, websock.User{
+				Username:  otherusername,
+				PublicKey: util.MarshalPublic(otheruser.pubKey)})
 		}
 	}
 
