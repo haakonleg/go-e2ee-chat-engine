@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rsa"
+	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
 	"log"
@@ -16,8 +17,8 @@ const publisherSize = 10
 // ChatRoom contains the information about the clients in a chatroom and has
 // the responsibility to distribute messages to the corrent correspondent
 type ChatRoom struct {
-	// Name is the name of the chatroom
-	Name string
+	// The internal representation of this chatroom in the database
+	*mdb.Chat
 	// All subscribers indexed based on username
 	subscribers map[string]struct {
 		sink   chan<- websock.Message
@@ -42,9 +43,10 @@ type ChatRoom struct {
 }
 
 // NewChatRoom returns a new chatroom with the given name
-func NewChatRoom(name string) ChatRoom {
-	return ChatRoom{
-		name,
+func NewChatRoom(name, password string, isHidden bool) *ChatRoom {
+	chatdb := mdb.NewChat(name, password, isHidden)
+	return &ChatRoom{
+		chatdb,
 		make(map[string]struct {
 			sink   chan<- websock.Message
 			pubKey *rsa.PublicKey
