@@ -99,6 +99,9 @@ type ChatInfoMessage struct {
 }
 
 // User is used in ChatInfoMessage, and by the server when notifying a client about a new connected user
+//
+// TODO perhaps change name to prevent confusion with the `User` struct in
+// `user.go`
 type User struct {
 	Username  string
 	PublicKey []byte
