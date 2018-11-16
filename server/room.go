@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rsa"
+	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
 	"log"
 )
@@ -101,20 +102,48 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 		return
 	}
 
+	websockuser := websock.User{
+		username,
+		util.MarshalPublic(pubKey),
+	}
+
 	// Warn all current subscribers that a user joined
 	evt := websock.Message{
 		websock.UserJoined,
-		websock.User{
-			username,
-			pubKey,
-		},
-	}
-	for name, user := range room.subscribers {
-		room.trySendEvent(name, user.sink, evt)
+		websockuser,
 	}
 
 	// TODO send chatinfo message to user registrating
+	chatInfo := &websock.ChatInfoMessage{
+		MyUsername: username,
+		Users: []websock.User{
+			websockuser,
+		},
+		Messages: make([]*websock.ChatMessage, 0)}
 
+	// Iterate over all subscribers, send message and append to chatusers if
+	// successfully sent message
+	for otherusername, otheruser := range room.subscribers {
+		if room.trySendEvent(otherusername, otheruser.sink, evt) {
+			chatInfo.Users = append(chatInfo.Users, websock.User{otherusername, util.MarshalPublic(otheruser.pubKey)})
+		}
+	}
+
+	// TODO find a way to access the messages for this user
+	// Add the chat messages addressed to this user
+	//for _, message := range s.FindMessagesForUser(user.Username, chatName) {
+	//	// Check if the message actually has the encrypted message
+	//	if len(message.MessageContent) == 0 {
+	//		continue
+	//	}
+
+	//	chatInfo.Messages = append(chatInfo.Messages, &websock.ChatMessage{
+	//		Sender:    message.Sender,
+	//		Timestamp: message.Timestamp,
+	//		Message:   message.MessageContent[0].Content})
+	//}
+
+	// Add user to subscribers
 	room.subscribers[username] = struct {
 		sink   chan<- websock.Message
 		pubKey *rsa.PublicKey
@@ -124,14 +153,18 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 	}
 }
 
-func (room *ChatRoom) trySendEvent(username string, sink chan<- websock.Message, evt websock.Message) {
+// trySendEvent tries to send an event to a specific user and removes the user
+// if its unable to send the message
+func (room *ChatRoom) trySendEvent(username string, sink chan<- websock.Message, evt websock.Message) bool {
 	select {
 	// Try to send message to client sink
 	case sink <- evt:
+		return true
 	// TODO perhaps change, will currently close connection to all
 	// clients which do not have room for another event
 	default:
 		close(sink)
 		delete(room.subscribers, username)
+		return false
 	}
 }
