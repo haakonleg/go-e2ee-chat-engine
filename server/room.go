@@ -30,20 +30,19 @@ type SendChatMessage struct {
 	EncryptedContent map[string][]byte
 }
 
-type userinfo struct {
-	sink   chan<- Event
-	pubKey *rsa.PublicKey
-}
-
 // ChatRoom contains the information about the clients in a chatroom and has
 // the responsibility to distribute messages to the corrent correspondent
 type ChatRoom struct {
 	// All subscribers indexed based on username
-	subscribers map[string]userinfo
+	subscribers map[string]struct {
+		sink   chan<- Event
+		pubKey *rsa.PublicKey
+	}
 	// The channel where users can send a ChatClient to register for messages
 	register chan struct {
 		username string
-		info     userinfo
+		sink     chan<- Event
+		pubKey   *rsa.PublicKey
 	}
 	// The publisher where any user can send a message to the chatroom
 	broadcast chan SendChatMessage
@@ -91,7 +90,13 @@ func (room *ChatRoom) Run() {
 				log.Printf("User (%s) tried to subscribe to a chatroom multiple times\n", reg.username)
 				continue
 			}
-			room.subscribers[reg.username] = reg.info
+			room.subscribers[reg.username] = struct {
+				sink   chan<- Event
+				pubKey *rsa.PublicKey
+			}{
+				reg.sink,
+				reg.pubKey,
+			}
 
 			// TODO warn all existing users that a new user has joined
 		}
@@ -102,8 +107,9 @@ func (room *ChatRoom) Run() {
 func (room *ChatRoom) Register(username string, pubKey *rsa.PublicKey, sink chan<- Event) {
 	room.register <- struct {
 		username string
-		info     userinfo
-	}{username, userinfo{sink, pubKey}}
+		sink     chan<- Event
+		pubKey   *rsa.PublicKey
+	}{username, sink, pubKey}
 }
 
 // Broadcast sends an event to all subscribers
