@@ -8,10 +8,15 @@ import (
 )
 
 const subscriberSinkSize = 3
+const registerSize = 5
+const broadcastSize = 5
+const publisherSize = 10
 
 // ChatRoom contains the information about the clients in a chatroom and has
 // the responsibility to distribute messages to the corrent correspondent
 type ChatRoom struct {
+	// Name is the name of the chatroom
+	Name string
 	// All subscribers indexed based on username
 	subscribers map[string]struct {
 		sink   chan<- websock.Message
@@ -23,11 +28,33 @@ type ChatRoom struct {
 		sink     chan<- websock.Message
 		pubKey   *rsa.PublicKey
 	}
-	// The broadcast where incoming chat messages are recived
-	broadcast chan struct {
-		sender     string
-		timestamp  int64
-		encContent map[string][]byte
+	// The channel where incoming messages are broadcasted to all subscribers
+	broadcast chan websock.Message
+	// The channel where messages have a destination subscriber
+	publisher chan struct {
+		username string
+		msg      websock.Message
+	}
+}
+
+// NewChatRoom returns a new chatroom with the given name
+func NewChatRoom(name string) ChatRoom {
+	return ChatRoom{
+		name,
+		make(map[string]struct {
+			sink   chan<- websock.Message
+			pubKey *rsa.PublicKey
+		}),
+		make(chan struct {
+			username string
+			sink     chan<- websock.Message
+			pubKey   *rsa.PublicKey
+		}, registerSize),
+		make(chan websock.Message, broadcastSize),
+		make(chan struct {
+			username string
+			msg      websock.Message
+		}, publisherSize),
 	}
 }
 
@@ -35,9 +62,16 @@ type ChatRoom struct {
 func (room *ChatRoom) Run() {
 	for {
 		select {
-		// Send chat message to all subscribers
+		// Send a message to all subscribers
 		case msg := <-room.broadcast:
-			room.broadcastChatMessage(msg.sender, msg.timestamp, msg.encContent)
+			for recipentname, recipent := range room.subscribers {
+				room.trySendMsg(recipentname, recipent.sink, msg)
+			}
+		// Send a message to a specific subscriber
+		case msg := <-room.publisher:
+			if recipent, ok := room.subscribers[msg.username]; ok {
+				room.trySendMsg(msg.username, recipent.sink, msg.msg)
+			}
 		// Register a new subscriber
 		case reg := <-room.register:
 			room.registerSubscriber(reg.username, reg.pubKey, reg.sink)
@@ -57,43 +91,16 @@ func (room *ChatRoom) Register(username string, pubKey *rsa.PublicKey) <-chan we
 }
 
 // Broadcast sends chat message to all subscribers
-func (room *ChatRoom) Broadcast(sender string, timestamp int64, encContent map[string][]byte) {
-	room.broadcast <- struct {
-		sender     string
-		timestamp  int64
-		encContent map[string][]byte
-	}{
-		sender,
-		timestamp,
-		encContent,
-	}
+func (room *ChatRoom) Broadcast(msg websock.Message) {
+	room.broadcast <- msg
 }
 
-// broadcaseChatMessage sends a received chat message to all subscribers
-func (room *ChatRoom) broadcastChatMessage(sender string, timestamp int64, encContent map[string][]byte) {
-	// Template for a message
-	chatmsg := websock.ChatMessage{
-		Sender:    sender,
-		Timestamp: timestamp,
-	}
-
-	// Iterate over all subscribers
-	for username, user := range room.subscribers {
-
-		// Get the encrypted content for the current user
-		content, ok := encContent[username]
-		if !ok {
-			// TODO properly handle that message did not include a
-			// cipher-message for specific user
-			continue
-		}
-
-		chatmsg.Message = content
-		msg := websock.Message{
-			Type:    websock.ChatMessageReceived,
-			Message: chatmsg}
-		room.trySendEvent(username, user.sink, msg)
-	}
+// Publish sends a message to specific subscriber if the subscriber exists
+func (room *ChatRoom) Publish(username string, msg websock.Message) {
+	room.publisher <- struct {
+		username string
+		msg      websock.Message
+	}{username, msg}
 }
 
 // registerSubscriber registers a subscriber to the chatroom
@@ -120,7 +127,6 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 		Message: websockuser,
 	}
 
-	// TODO send chatinfo message to user registrating
 	chatInfo := &websock.ChatInfoMessage{
 		MyUsername: username,
 		Users: []websock.User{
@@ -131,7 +137,7 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 	// Iterate over all subscribers, send message and append to chatusers if
 	// successfully sent message
 	for otherusername, otheruser := range room.subscribers {
-		if room.trySendEvent(otherusername, otheruser.sink, evt) {
+		if room.trySendMsg(otherusername, otheruser.sink, evt) {
 			chatInfo.Users = append(chatInfo.Users, websock.User{
 				Username:  otherusername,
 				PublicKey: util.MarshalPublic(otheruser.pubKey)})
@@ -139,6 +145,7 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 	}
 
 	// TODO find a way to access the messages for this user
+
 	// Add the chat messages addressed to this user
 	//for _, message := range s.FindMessagesForUser(user.Username, chatName) {
 	//	// Check if the message actually has the encrypted message
@@ -152,6 +159,8 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 	//		Message:   message.MessageContent[0].Content})
 	//}
 
+	// TODO send chatinfo message to user registrating
+
 	// Add user to subscribers
 	room.subscribers[username] = struct {
 		sink   chan<- websock.Message
@@ -162,9 +171,9 @@ func (room *ChatRoom) registerSubscriber(username string, pubKey *rsa.PublicKey,
 	}
 }
 
-// trySendEvent tries to send an event to a specific user and removes the user
+// trySendMsg tries to send an event to a specific user and removes the user
 // if its unable to send the message
-func (room *ChatRoom) trySendEvent(username string, sink chan<- websock.Message, evt websock.Message) bool {
+func (room *ChatRoom) trySendMsg(username string, sink chan<- websock.Message, evt websock.Message) bool {
 	select {
 	// Try to send message to client sink
 	case sink <- evt:
