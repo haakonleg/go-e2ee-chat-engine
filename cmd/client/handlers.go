@@ -3,8 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"log"
 
@@ -26,18 +24,16 @@ func (c *Client) createUserHandler(server string, username string) {
 		Username:  username,
 		PublicKey: util.MarshalPublic(pubKey)}
 
-	websock.SendMessage(c.ws, websock.RegisterUser, regUserMsg, websock.JSON)
+	websock.Msg.Send(c.ws, &websock.Message{Type: websock.RegisterUser, Message: regUserMsg})
 
-	res, err := c.wsReader.GetNext()
+	_, err := c.wsReader.GetNext()
 	if err != nil {
 		c.gui.ShowDialog("Did not get a response from the server", nil)
 		return
 	}
 
-	if res.Type == websock.MessageOK {
-		// Save private key to file
-		savePrivKey(username, privKey)
-	}
+	// Save private key to file
+	savePrivKey(username, privKey)
 
 	c.gui.ShowDialog("User created. You can now log in.", nil)
 }
@@ -63,7 +59,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	}
 
 	// Send log in request to server
-	websock.SendMessage(c.ws, websock.LoginUser, username, websock.String)
+	websock.Msg.Send(c.ws, &websock.Message{Type: websock.LoginUser, Message: username})
 
 	// Receive auth challenge from server
 	res, err := c.wsReader.GetNext()
@@ -74,7 +70,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	log.Println(res)
 
 	// Try to decrypt auth challenge
-	decKey, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, res.Message)
+	decKey, err := rsa.DecryptPKCS1v15(rand.Reader, privKey, res.Message.([]byte))
 	if err != nil {
 		c.gui.ShowDialog("Invalid private key", nil)
 		return
@@ -82,7 +78,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	log.Println(decKey)
 
 	// Send decrypted auth key to server
-	websock.SendMessage(c.ws, websock.AuthChallengeResponse, decKey, websock.Bytes)
+	websock.Msg.Send(c.ws, &websock.Message{Type: websock.AuthChallengeResponse, Message: decKey})
 
 	// Check response from server
 	if res, err = c.wsReader.GetNext(); err != nil {
@@ -102,18 +98,18 @@ func (c *Client) createRoomHandler(name, password string, isHidden bool) {
 	req := &websock.CreateChatRoomMessage{
 		Name:     name,
 		Password: password,
-		IsHidden: isHidden,
-		AuthKey:  c.authKey}
+		IsHidden: isHidden}
 
-	websock.SendMessage(c.ws, websock.CreateChatRoom, req, websock.JSON)
-	if _, err := websock.GetResponse(c.ws); err != nil {
+	websock.Msg.Send(c.ws, &websock.Message{Type: websock.CreateChatRoom, Message: req})
+
+	if _, err := c.wsReader.GetNext(); err != nil {
 		c.gui.ShowDialog(err.Error(), nil)
 	}
 }
 
 func (c *Client) getChatRooms() (*websock.GetChatRoomsResponseMessage, error) {
 	// Send request for chat rooms
-	websock.SendMessage(c.ws, websock.GetChatRooms, nil, websock.Nil)
+	websock.Msg.Send(c.ws, &websock.Message{Type: websock.GetChatRooms})
 
 	// Get chat rooms response from server
 	res, err := c.wsReader.GetNext()
@@ -121,22 +117,16 @@ func (c *Client) getChatRooms() (*websock.GetChatRoomsResponseMessage, error) {
 		return nil, err
 	}
 
-	// Unmarshal response
-	chatRoomsResponse := new(websock.GetChatRoomsResponseMessage)
-	if err := json.Unmarshal(res.Message, chatRoomsResponse); err != nil {
-		return nil, errors.New("Error parsing chat rooms response")
-	}
-	return chatRoomsResponse, nil
+	return res.Message.(*websock.GetChatRoomsResponseMessage), nil
 }
 
 func (c *Client) joinChatHandler(name, password string) {
 	// Send request to join chat room
 	req := &websock.JoinChatMessage{
 		Name:     name,
-		Password: password,
-		AuthKey:  c.authKey}
+		Password: password}
 
-	websock.SendMessage(c.ws, websock.JoinChat, req, websock.JSON)
+	websock.Msg.Send(c.ws, &websock.Message{Type: websock.JoinChat, Message: req})
 
 	if _, err := c.wsReader.GetNext(); err != nil {
 		c.gui.ShowDialog(err.Error(), nil)

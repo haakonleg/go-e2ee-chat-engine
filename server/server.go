@@ -62,40 +62,59 @@ func (s *Server) RemoveClient(ws *websocket.Conn) {
 	s.Users.Remove(ws)
 }
 
-// WebsockHandler is the handler for the server websocket
-// it handles messages from a single client
+// WebsockHandler is the handler for the server websocket when a client initially connects.
+// It handles messages from an unauthenticated client.
 func (s *Server) WebsockHandler(ws *websocket.Conn) {
 	s.AddClient(ws, nil)
 	log.Printf("Client connected: %s. Total connected: %d", ws.Request().RemoteAddr, s.Users.Len())
 
-	// Listen for messages
+	// Listen for messages from unauthenticated clients
+NoAuth:
 	for {
 		msg := new(websock.Message)
-		if err := websocket.JSON.Receive(ws, msg); err != nil {
-			break
+		if err := websock.Msg.Receive(ws, msg); err != nil {
+			log.Println(err)
+			goto Disconnect
 		}
 
 		// Check message type and forward to appropriate handlers
 		switch msg.Type {
 		case websock.RegisterUser:
-			s.RegisterUser(ws, msg)
+			if ValidateRegisterUser(ws, msg.Message.(*websock.RegisterUserMessage)) {
+				s.RegisterUser(ws, msg.Message.(*websock.RegisterUserMessage))
+			}
 		case websock.LoginUser:
-			s.LoginUser(ws, msg)
-		case websock.CreateChatRoom:
-			s.CreateChatRoom(ws, msg)
-		case websock.GetChatRooms:
-			s.GetChatRooms(ws)
-		case websock.JoinChat:
-			s.JoinChat(ws, msg)
-		case websock.SendChat:
-			s.ReceiveChatMessage(ws, msg)
-		case websock.LeaveChat:
-			s.ClientLeftChat(ws)
-		default:
-			websock.InvalidMessage(ws)
+			if s.LoginUser(ws, msg.Message.(string)) {
+				break NoAuth
+			}
 		}
 	}
 
+	// Listen for messages from authenticated clients
+	for {
+		msg := new(websock.Message)
+		if err := websock.Msg.Receive(ws, msg); err != nil {
+			log.Println(err)
+			goto Disconnect
+		}
+
+		switch msg.Type {
+		case websock.CreateChatRoom:
+			if ValidateCreateChatRoom(ws, msg.Message.(*websock.CreateChatRoomMessage)) {
+				s.CreateChatRoom(ws, msg.Message.(*websock.CreateChatRoomMessage))
+			}
+		case websock.GetChatRooms:
+			s.GetChatRooms(ws)
+		case websock.JoinChat:
+			s.JoinChat(ws, msg.Message.(*websock.JoinChatMessage))
+		case websock.SendChat:
+			s.ReceiveChatMessage(ws, msg.Message.(*websock.SendChatMessage))
+		case websock.LeaveChat:
+			s.ClientLeftChat(ws)
+		}
+	}
+
+Disconnect:
 	s.RemoveClient(ws)
 	log.Printf("Client disconnected: %s. Total connected: %d\n", ws.Request().RemoteAddr, s.Users.Len())
 }

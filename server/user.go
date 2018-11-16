@@ -4,11 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/globalsign/mgo/bson"
@@ -131,85 +127,55 @@ type User struct {
 	ChatRoom  string
 }
 
-// ValidateUsername checks that a username fulfills certain requirements. It
-// returns an error with a descriptive message if does not uphold requirements.
-//
-// FIXME should probably be moved to a different file/module when validation of
-// other messages is improved
-func ValidateUsername(username string) error {
-	if username == "" {
-		return errors.New("Username cannot be empty")
-	}
-	if len(username) < 3 {
-		return errors.New("Username has to contain at least 3 characters")
-	}
-	if len(username) > 20 {
-		return errors.New("Username cannot contain more than 20 characters")
-	}
-	return nil
-}
-
 // KeyMatches checks that an authentication key matches the one for this user
 func (u *User) KeyMatches(authKey []byte) bool {
 	return bytes.Equal(u.AuthKey, authKey)
 }
 
 // RegisterUser registers a new user, and adds it to the database
-func (s *Server) RegisterUser(ws *websocket.Conn, msg *websock.Message) {
-	regUserMsg := new(websock.RegisterUserMessage)
-	if err := json.Unmarshal(msg.Message, regUserMsg); err != nil {
-		websock.InvalidFormat(ws)
-		return
-	}
-	regUserMsg.Username = strings.TrimSpace(regUserMsg.Username)
-
-	if err := ValidateUsername(regUserMsg.Username); err != nil {
-		websock.SendMessage(ws, websock.Error, "Invalid username, "+err.Error(), websock.String)
-		return
-	}
-
+func (s *Server) RegisterUser(ws *websocket.Conn, msg *websock.RegisterUserMessage) {
 	// Add new user to database
-	user := mdb.NewUser(regUserMsg.Username, regUserMsg.PublicKey)
+	user := mdb.NewUser(msg.Username, msg.PublicKey)
 	if err := s.Db.Insert(mdb.Users, user); err != nil {
-		websock.SendMessage(ws, websock.Error, "Error registering user", websock.String)
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Error registering user"})
 		return
 	}
 
-	websock.SendMessage(ws, websock.MessageOK, "User registered", websock.String)
+	websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "User registered"})
 }
 
 // LoginUser authenticates a user using a randomly generated authentication token
 // This token is encrypted with the public key of the username the client is trying to log in as
 // The client is then expected to respond with the correct decrypted token
 // TODO check if user is already logged in
-func (s *Server) LoginUser(ws *websocket.Conn, msg *websock.Message) {
-	username := string(msg.Message)
-
+func (s *Server) LoginUser(ws *websocket.Conn, username string) bool {
 	// Create new user object
 	newUser, encKey, err := NewUser(s.Db, username)
 	if err != nil {
-		websock.SendMessage(ws, websock.Error, "User does not exist", websock.String)
-		return
+		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "User does not exist"})
+		return false
 	}
 
 	// Send auth challenge
-	websock.SendMessage(ws, websock.AuthChallenge, encKey, websock.Bytes)
+	websock.Msg.Send(ws, &websock.Message{Type: websock.AuthChallenge, Message: encKey})
 
 	// Receive auth challenge response
-	res, err := websock.GetResponse(ws)
-	if err != nil {
+	res := new(websock.Message)
+	if err := websock.Msg.Receive(ws, res); err != nil {
 		log.Println(err)
-		return
+		return false
 	}
 
 	// Check that the received decrypted key matches the original auth key
-	if newUser.KeyMatches(res.Message) {
-		fmt.Printf("Client %s authenticated as user %s\n", ws.Request().RemoteAddr, newUser.Username)
+	if newUser.KeyMatches(res.Message.([]byte)) {
+		log.Printf("Client %s authenticated as user %s\n", ws.Request().RemoteAddr, newUser.Username)
 		s.AddClient(ws, newUser)
-		websock.SendMessage(ws, websock.MessageOK, "Logged in", websock.String)
-	} else {
-		websock.SendMessage(ws, websock.Error, "Invalid auth key", websock.String)
+		websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "Logged in"})
+		return true
 	}
+
+	websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Invalid auth key"})
+	return false
 }
 
 // NewUser creates a new user object for a connected client, with the username, generated (temporary) authentication
