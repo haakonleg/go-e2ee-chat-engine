@@ -9,6 +9,7 @@ import (
 
 const subscriberSinkSize = 3
 const registerSize = 5
+const unregisterSize = 5
 const broadcastSize = 5
 const publisherSize = 10
 
@@ -28,6 +29,8 @@ type ChatRoom struct {
 		sink     chan<- websock.Message
 		pubKey   *rsa.PublicKey
 	}
+	// The channel where users can unsubscribe from the chatroom
+	unregister chan string
 	// The channel where incoming messages are broadcasted to all subscribers
 	broadcast chan websock.Message
 	// The channel where messages have a destination subscriber
@@ -50,6 +53,7 @@ func NewChatRoom(name string) ChatRoom {
 			sink     chan<- websock.Message
 			pubKey   *rsa.PublicKey
 		}, registerSize),
+		make(chan string, unregisterSize),
 		make(chan websock.Message, broadcastSize),
 		make(chan struct {
 			username string
@@ -75,12 +79,21 @@ func (room *ChatRoom) Run() {
 		// Register a new subscriber
 		case reg := <-room.register:
 			room.registerSubscriber(reg.username, reg.pubKey, reg.sink)
+		// Unregister a subscriber
+		case username := <-room.unregister:
+			delete(room.subscribers, username)
+
+			// Send user left message to all subscribers
+			room.Broadcast(websock.Message{
+				Type:    websock.UserLeft,
+				Message: username,
+			})
 		}
 	}
 }
 
-// Register registers a user to receive events from the chatroom
-func (room *ChatRoom) Register(username string, pubKey *rsa.PublicKey) <-chan websock.Message {
+// Subscribe registers a user to receive events from the chatroom
+func (room *ChatRoom) Subscribe(username string, pubKey *rsa.PublicKey) <-chan websock.Message {
 	sink := make(chan websock.Message, subscriberSinkSize)
 	room.register <- struct {
 		username string
@@ -90,7 +103,12 @@ func (room *ChatRoom) Register(username string, pubKey *rsa.PublicKey) <-chan we
 	return sink
 }
 
-// Broadcast sends chat message to all subscribers
+// Unsubscribe unregisters a user from the chatroom
+func (room *ChatRoom) Unsubscribe(username string) {
+	room.unregister <- username
+}
+
+// Broadcast sends a message to all subscribers
 func (room *ChatRoom) Broadcast(msg websock.Message) {
 	room.broadcast <- msg
 }
