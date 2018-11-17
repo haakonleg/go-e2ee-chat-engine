@@ -19,6 +19,7 @@ const (
 	labelPassword = "Password "
 )
 
+// RoomsGUI contains the widgets/state of the chat rooms view
 type RoomsGUI struct {
 	*GUI
 	CreateRoomHandler func(name, password string, isHidden bool)

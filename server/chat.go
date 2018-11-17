@@ -99,7 +99,7 @@ func (s *Server) ClientJoinedChat(ws *websocket.Conn, user *User, chatName strin
 	// Create response object, send the client list of users, and messages sent that this user can decrypt
 	chatInfo := &websock.ChatInfoMessage{
 		MyUsername: user.Username,
-		Users: []websock.User{websock.User{
+		Users: []websock.User{{
 			Username:  user.Username,
 			PublicKey: util.MarshalPublic(user.PublicKey)}},
 		Messages: make([]*websock.ChatMessage, 0)}

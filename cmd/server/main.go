@@ -58,5 +58,5 @@ func main() {
 		http.Handle("/", websocket.Handler(server.WebsockHandler))
 	}
 	err := http.ListenAndServe(":"+envVars["PORT"], nil)
-	log.Printf("Error occured in http listener: %s\n", err)
+	log.Printf("Error occurred in http listener: %s\n", err)
 }

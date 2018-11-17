@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 )
 
+// LoginGUI contains the widgets/state of the login view
 type LoginGUI struct {
 	*GUI
 	DefaultServerText string
@@ -63,6 +64,7 @@ func (gui *LoginGUI) Create() {
 	gui.focusedIndex = 1
 }
 
+// KeyHandler is the keyboard input handler for the login view
 func (gui *LoginGUI) KeyHandler(ev *tcell.EventKey) *tcell.EventKey {
 	// Change focus to next element if tab was pressed
 	if ev.Key() == tcell.KeyTab {

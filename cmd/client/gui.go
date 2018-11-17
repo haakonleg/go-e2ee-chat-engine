@@ -7,6 +7,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+// GUIConfig contains configuration parameters for the GUI.
+// The functions defined here are callbacks, which will be called when some UI action happens.
 type GUIConfig struct {
 	DefaultServerText     string
 	ChatRoomsPollInterval int
@@ -16,6 +18,7 @@ type GUIConfig struct {
 	JoinChatHandler       func(name, password string)
 }
 
+// GUI contains the widgets/state of the user interface
 type GUI struct {
 	chatRoomsPollInterval int
 	app                   *tview.Application
@@ -25,6 +28,7 @@ type GUI struct {
 	chatGUI               *ChatGUI
 }
 
+// NewGUI creates a new instance of the GUI using a GUIConfig object
 func NewGUI(config *GUIConfig) *GUI {
 	g := &GUI{
 		chatRoomsPollInterval: config.ChatRoomsPollInterval,

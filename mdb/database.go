@@ -13,7 +13,9 @@ type DatabaseCollection int
 const (
 	// Users is the collection containing users
 	Users DatabaseCollection = iota
+	// ChatRooms is the collection containing chat rooms
 	ChatRooms
+	// Messages is the collection containing chat messages
 	Messages
 )
 
@@ -29,6 +31,7 @@ func (c DatabaseCollection) String() string {
 	return ""
 }
 
+// Database contains the mongoDB session, and provides methods to query the database
 type Database struct {
 	dbName  string
 	session *mgo.Session
@@ -110,6 +113,8 @@ func (db *Database) Insert(collection DatabaseCollection, objects ...interface{}
 	return nil
 }
 
+// FindAll finds one or more documents contained in a specific database collection
+// Takes a bson query and selector document as input. The result is stored in "result".
 func (db *Database) FindAll(collection DatabaseCollection, query interface{}, selector interface{}, result interface{}) error {
 	sessionCpy := db.session.Copy()
 	defer sessionCpy.Close()
@@ -127,6 +132,7 @@ func (db *Database) FindAll(collection DatabaseCollection, query interface{}, se
 	return nil
 }
 
+// FindOne finds one document in the database (the first that matches the supplied query)
 func (db *Database) FindOne(collection DatabaseCollection, query interface{}, selector interface{}, result interface{}) error {
 	sessionCpy := db.session.Copy()
 	defer sessionCpy.Close()

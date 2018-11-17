@@ -73,13 +73,28 @@ func (s *Server) WebsockHandler(ws *websocket.Conn) {
 
 	pinger, pongCount := s.Pinger(ws)
 
+	// Enter unauthenticated message loop
+	if s.NoAuthHandler(ws, pongCount) {
+		// Enter authenticated message loop
+		s.AuthedHandler(ws, pongCount)
+	}
+
+	pinger.Stop()
+	ws.Close()
+	s.RemoveClient(ws)
+	log.Printf("Client disconnected: %s. Total connected: %d\n", ws.Request().RemoteAddr, s.Users.Len())
+}
+
+// NoAuthHandler handles websocket messages from an unauthenticated client
+// This function returns true if the client was authenticated, or false
+// if the client disconnected without authenticating as a user
+func (s *Server) NoAuthHandler(ws *websocket.Conn, pongCount *int64) bool {
 	// Listen for messages from unauthenticated clients
-NoAuth:
 	for {
 		msg := new(websock.Message)
 		if err := websock.Msg.Receive(ws, msg); err != nil {
 			log.Println(err)
-			goto Disconnect
+			return false
 		}
 
 		// Check message type and forward to appropriate handlers
@@ -90,20 +105,23 @@ NoAuth:
 			}
 		case websock.LoginUser:
 			if s.LoginUser(ws, msg.Message.(string)) {
-				break NoAuth
+				return true
 			}
 		case websock.Pong:
 			log.Printf("Receive pong from %s", ws.Request().RemoteAddr)
 			atomic.AddInt64(pongCount, 1)
 		}
 	}
+}
 
+// AuthedHandler handles websocket messages from authenticated clients
+func (s *Server) AuthedHandler(ws *websocket.Conn, pongCount *int64) {
 	// Listen for messages from authenticated clients
 	for {
 		msg := new(websock.Message)
 		if err := websock.Msg.Receive(ws, msg); err != nil {
 			log.Println(err)
-			goto Disconnect
+			break
 		}
 
 		switch msg.Type {
@@ -124,12 +142,6 @@ NoAuth:
 			atomic.AddInt64(pongCount, 1)
 		}
 	}
-
-Disconnect:
-	pinger.Stop()
-	ws.Close()
-	s.RemoveClient(ws)
-	log.Printf("Client disconnected: %s. Total connected: %d\n", ws.Request().RemoteAddr, s.Users.Len())
 }
 
 // Pinger sends a ping message to the client in the interval specified in Keepalive in the ServerConfig

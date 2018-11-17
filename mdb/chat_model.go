@@ -7,6 +7,7 @@ import (
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 )
 
+// Chat is the model of the chat object stored in the mongoDB database
 type Chat struct {
 	ID           bson.ObjectId `bson:"_id"`
 	Timestamp    int64         `bson:"timestamp"`

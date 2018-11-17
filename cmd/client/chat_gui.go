@@ -10,6 +10,7 @@ import (
 	"github.com/rivo/tview"
 )
 
+// ChatGUI contains the widgets/state for the chat room view
 type ChatGUI struct {
 	*GUI
 	SendChatMessageHandler func(message string)

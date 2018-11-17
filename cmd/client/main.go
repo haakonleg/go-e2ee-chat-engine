@@ -54,6 +54,7 @@ func (wr *WSReader) GetNext() (*websock.Message, error) {
 	return result.Message, result.Err
 }
 
+// Client contains the state of the client
 type Client struct {
 	wsReader    *WSReader
 	ws          *websocket.Conn
@@ -63,6 +64,8 @@ type Client struct {
 	gui         *GUI
 }
 
+// Disconnected is a callback function which should be called when the client loses connection from the server
+// It will show an alert to the user and exit the program.
 func (c *Client) Disconnected() {
 	c.gui.app.QueueUpdate(func() {
 		c.gui.ShowDialog("Disconnected from server", func() {

@@ -4,31 +4,45 @@ package websock
 type MessageType int
 
 const (
+	// Error means that en error occured
 	Error MessageType = iota
+	// OK means that the action was successfull
 	OK
 
-	// User/auth related
+	// RegisterUser is sent when a client wants to register a new user
 	RegisterUser
+	// LoginUser is sent when a client wants to authenticate as a user
 	LoginUser
+	// AuthChallenge is sent by the server when an authentication challenge is initiated
 	AuthChallenge
+	// AuthChallengeResponse is sent by the client in resposne to an authentication challenge
 	AuthChallengeResponse
 
-	// Chat related
+	// CreateChatRoom is sent when a client wants to create a new chat room
 	CreateChatRoom
+	// GetChatRooms is sent when a client wants to retrieve a list of available chat rooms
 	GetChatRooms
+	// GetChatRoomsResponse is sent by the server in response to a GetChatRooms message
 	GetChatRoomsResponse
 
-	// Messages used for a chat session
+	// JoinChat is sent when a clients wants to join a chat session
 	JoinChat
+	// ChatInfo is sent by the server when a client has joined a chat session
 	ChatInfo
+	// SendChat is sent when a client sends a chat message
 	SendChat
+	// ChatMessageReceived is sent by the server when another user in a chat room sends a chat message
 	ChatMessageReceived
+	// UserJoined is sent by the server when a user joins a chat room the client is in
 	UserJoined
+	// UserLeft is sent by the server when a user leaves a chat room the client is in
 	UserLeft
+	// LeaveChat is sent when a client wants to leave a chat room
 	LeaveChat
 
-	// Keepalive messages
+	// Ping is a keepalive message sent by the server
 	Ping
+	// Pong is sent by the client in response to a Ping message
 	Pong
 )
 
