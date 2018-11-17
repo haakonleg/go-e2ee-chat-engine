@@ -21,7 +21,8 @@ type Config struct {
 // Server contains the context of the chat engine server
 type Server struct {
 	Config
-	Db *mdb.Database
+	Db          *mdb.Database
+	ChatManager *ChatRoomManager
 }
 
 // CreateServer creates a new instance of the server using the config
@@ -33,8 +34,9 @@ func CreateServer(config Config) *Server {
 	}
 
 	s := &Server{
-		Config: config,
-		Db:     db,
+		Config:      config,
+		Db:          db,
+		ChatManager: NewChatRoomManager(),
 	}
 
 	return s

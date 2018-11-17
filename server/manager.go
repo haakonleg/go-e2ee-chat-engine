@@ -27,8 +27,8 @@ type ChatRoomManager struct {
 }
 
 // NewChatRoomManager makes a new chatroom manager
-func NewChatRoomManager() (m ChatRoomManager) {
-	m = ChatRoomManager{
+func NewChatRoomManager() (m *ChatRoomManager) {
+	m = &ChatRoomManager{
 		make(map[string]*ChatRoom),
 		make(chan struct {
 			name     string
