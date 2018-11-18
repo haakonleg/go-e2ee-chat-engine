@@ -32,6 +32,11 @@ func (c *Chat) ValidPassword(password string) bool {
 	return true
 }
 
+// HasPassword checks if the room has a password
+func (c *Chat) HasPassword() bool {
+	return len(c.PasswordHash) > 0
+}
+
 // NewChat creates a new instance of the Chat object. It takes a plaintext password
 // as input, and returns a new Chat object containing the hashed checksum of that password.
 func NewChat(name, password string, isHidden bool) *Chat {
