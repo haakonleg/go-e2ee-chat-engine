@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
 )
 
 const creationSize = 3
@@ -10,6 +11,8 @@ const requestsSize = 10
 // ChatRoomManager manages and runs all the chatrooms for the server
 type ChatRoomManager struct {
 	rooms map[string]*ChatRoom
+	// DB is a connection to the database
+	DB *mdb.Database
 	// Channel for handling requests to make chatrooms
 	creation chan struct {
 		name     string
@@ -27,9 +30,10 @@ type ChatRoomManager struct {
 }
 
 // NewChatRoomManager makes a new chatroom manager
-func NewChatRoomManager() (m *ChatRoomManager) {
+func NewChatRoomManager(db *mdb.Database) (m *ChatRoomManager) {
 	m = &ChatRoomManager{
 		make(map[string]*ChatRoom),
+		db,
 		make(chan struct {
 			name     string
 			password string
@@ -56,8 +60,13 @@ func (m *ChatRoomManager) Run() {
 				req.err <- fmt.Errorf("Chatroom with name '%s' already exists", req.name)
 				continue
 			}
-			// Make and run new chatroom
-			m.rooms[req.name] = NewChatRoom(req.name, req.password, req.isHidden)
+			// Try to make a new chatroom
+			room, err := NewChatRoom(m.DB, req.name, req.password, req.isHidden)
+			if err != nil {
+				req.err <- err
+				continue
+			}
+			m.rooms[req.name] = room
 			m.rooms[req.name].Run()
 			req.err <- nil
 		case req := <-m.requests:

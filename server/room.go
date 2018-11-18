@@ -43,8 +43,13 @@ type ChatRoom struct {
 }
 
 // NewChatRoom returns a new chatroom with the given name
-func NewChatRoom(name, password string, isHidden bool) *ChatRoom {
+func NewChatRoom(DB *mdb.Database, name, password string, isHidden bool) (*ChatRoom, error) {
 	chatdb := mdb.NewChat(name, password, isHidden)
+
+	if err := DB.Insert(mdb.ChatRooms, chatdb); err != nil {
+		return nil, err
+	}
+
 	return &ChatRoom{
 		chatdb,
 		make(map[string]struct {
@@ -63,7 +68,7 @@ func NewChatRoom(name, password string, isHidden bool) *ChatRoom {
 			msg      websock.Message
 		}, publisherSize),
 		make(chan struct{}),
-	}
+	}, nil
 }
 
 // Run performs the event handling loop of the chatroom

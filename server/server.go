@@ -36,7 +36,7 @@ func CreateServer(config Config) *Server {
 	s := &Server{
 		Config:      config,
 		Db:          db,
-		ChatManager: NewChatRoomManager(),
+		ChatManager: NewChatRoomManager(db),
 	}
 
 	return s

@@ -15,8 +15,8 @@ import (
 // CreateChatRoom creates a new chat room, and adds it to the database
 func (s *Server) CreateChatRoom(ws *websocket.Conn, user *User, msg *websock.CreateChatRoomMessage) {
 	// Add the chat room to the database
-	chat := mdb.NewChat(msg.Name, msg.Password, msg.IsHidden)
-	if err := s.Db.Insert(mdb.ChatRooms, chat); err != nil {
+	err := s.ChatManager.NewRoom(msg.Name, msg.Password, msg.IsHidden)
+	if err != nil {
 		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Error creating chat room"})
 		return
 	}
