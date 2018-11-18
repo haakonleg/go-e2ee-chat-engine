@@ -12,7 +12,8 @@ const subscriberSinkSize = 3
 const registerSize = 5
 const unregisterSize = 5
 const broadcastSize = 5
-const publisherSize = 10
+const publishSize = 10
+const sendtoSize = 10
 
 // ChatRoom contains the information about the clients in a chatroom and has
 // the responsibility to distribute messages to the corrent correspondent
@@ -34,8 +35,13 @@ type ChatRoom struct {
 	unregister chan string
 	// The channel where incoming messages are broadcasted to all subscribers
 	broadcast chan websock.Message
+	// The channel where messages are sent to every user but the sender
+	publish chan struct {
+		except string
+		msg    websock.Message
+	}
 	// The channel where messages have a destination subscriber
-	publisher chan struct {
+	sendto chan struct {
 		username string
 		msg      websock.Message
 	}
@@ -64,9 +70,13 @@ func NewChatRoom(DB *mdb.Database, name, password string, isHidden bool) (*ChatR
 		make(chan string, unregisterSize),
 		make(chan websock.Message, broadcastSize),
 		make(chan struct {
+			except string
+			msg    websock.Message
+		}, publishSize),
+		make(chan struct {
 			username string
 			msg      websock.Message
-		}, publisherSize),
+		}, sendtoSize),
 		make(chan struct{}),
 	}, nil
 }
@@ -80,8 +90,15 @@ func (room *ChatRoom) Run() {
 			for recipentname, recipent := range room.subscribers {
 				room.trySendMsg(recipentname, recipent.sink, msg)
 			}
+		// Send a message everyone but sender
+		case msg := <-room.publish:
+			for recipentname, recipent := range room.subscribers {
+				if recipentname != msg.except {
+					room.trySendMsg(recipentname, recipent.sink, msg.msg)
+				}
+			}
 		// Send a message to a specific subscriber
-		case msg := <-room.publisher:
+		case msg := <-room.sendto:
 			if recipent, ok := room.subscribers[msg.username]; ok {
 				room.trySendMsg(msg.username, recipent.sink, msg.msg)
 			}
@@ -98,7 +115,7 @@ func (room *ChatRoom) Run() {
 				Message: username,
 			})
 		case <-room.stop:
-			log.Printf("Shutting down chat ('%s')\n", room.Name)
+			log.Printf("Shutting down chatroom (%s)\n", room.Name)
 			// TODO store state to mongo
 			return
 		}
@@ -131,9 +148,20 @@ func (room *ChatRoom) Broadcast(msg websock.Message) {
 	room.broadcast <- msg
 }
 
-// Publish sends a message to specific subscriber if the subscriber exists
-func (room *ChatRoom) Publish(username string, msg websock.Message) {
-	room.publisher <- struct {
+// Publish sends a message to everyone except the sender
+func (room *ChatRoom) Publish(except string, msg websock.Message) {
+	room.publish <- struct {
+		except string
+		msg    websock.Message
+	}{
+		except,
+		msg,
+	}
+}
+
+// SendTo sends a message to specific subscriber if the subscriber exists
+func (room *ChatRoom) SendTo(username string, msg websock.Message) {
+	room.sendto <- struct {
 		username string
 		msg      websock.Message
 	}{username, msg}
