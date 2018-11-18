@@ -51,18 +51,22 @@ func (s *Server) AddClient(ws *websocket.Conn, user *User) {
 
 // RemoveClient removes a client from the ConnectedClients map
 func (s *Server) RemoveClient(ws *websocket.Conn) {
-	user, ok := s.Users.Get(ws)
-	if !ok || user == nil {
-		log.Print("Websocket was not associated with a user")
+	user, ok := s.Users.Remove(ws)
+	if !ok {
+		log.Print("Websocket was not in users-map")
 		return
 	}
-	user.Lock()
-	defer user.Unlock()
-
-	if user.ChatRoom != "" {
-		go s.ClientLeftChat(ws)
+	if user == nil {
+		log.Print("Websocket was not associated with a user")
+	} else {
+		user.Lock()
+		defer user.Unlock()
+		if user.ChatRoom != "" {
+			s.ClientLeftChat(ws)
+		} else {
+			log.Print("User was not associated with a chatroom")
+		}
 	}
-	s.Users.Remove(ws)
 }
 
 // WebsockHandler is the handler for the server websocket when a client initially connects.
