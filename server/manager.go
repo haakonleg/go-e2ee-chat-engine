@@ -3,6 +3,8 @@ package server
 import (
 	"fmt"
 	"github.com/haakonleg/go-e2ee-chat-engine/mdb"
+	"github.com/haakonleg/go-e2ee-chat-engine/websock"
+	"sync"
 )
 
 const creationSize = 3
@@ -10,116 +12,67 @@ const requestsSize = 10
 
 // ChatRoomManager manages and runs all the chatrooms for the server
 type ChatRoomManager struct {
+	sync.RWMutex
 	rooms map[string]*ChatRoom
 	// DB is a connection to the database
-	DB *mdb.Database
-	// Channel for handling requests to make chatrooms
-	creation chan struct {
-		name     string
-		password string
-		isHidden bool
-		err      chan error
-	}
-	// Channel for requests to handle chatrooms
-	requests chan struct {
-		name string
-		f    func(*ChatRoom)
-		err  chan error
-	}
-	stop chan struct{}
+	db *mdb.Database
 }
 
 // NewChatRoomManager makes a new chatroom manager
 func NewChatRoomManager(db *mdb.Database) (m *ChatRoomManager) {
 	m = &ChatRoomManager{
+		sync.RWMutex{},
 		make(map[string]*ChatRoom),
 		db,
-		make(chan struct {
-			name     string
-			password string
-			isHidden bool
-			err      chan error
-		}, creationSize),
-		make(chan struct {
-			name string
-			f    func(*ChatRoom)
-			err  chan error
-		}, requestsSize),
-		make(chan struct{}),
 	}
 	return
 }
 
-// Run processes creation for chatroom manager
-func (m *ChatRoomManager) Run() {
-	fmt.Println("Starting chatmanager")
-	for {
-		select {
-		case req := <-m.creation:
-			if _, ok := m.rooms[req.name]; ok {
-				req.err <- fmt.Errorf("Chatroom with name '%s' already exists", req.name)
-				continue
-			}
-			// Try to make a new chatroom
-			room, err := NewChatRoom(m.DB, req.name, req.password, req.isHidden)
-			if err != nil {
-				req.err <- err
-				continue
-			}
-			m.rooms[req.name] = room
-			m.rooms[req.name].Run()
-			req.err <- nil
-		case req := <-m.requests:
-			room, ok := m.rooms[req.name]
-			if !ok {
-				req.err <- fmt.Errorf("Chatroom with name '%s' does not exist", req.name)
-				continue
-			}
-			req.f(room)
-			req.err <- nil
-		case <-m.stop:
-			for _, room := range m.rooms {
-				room.Stop()
-			}
-			fmt.Println("Shutting down chatmanager")
-			return
-		}
-	}
-}
-
-// Stop the chatmanager event loop
-func (m *ChatRoomManager) Stop() {
-	m.stop <- struct{}{}
-}
-
 // NewRoom makes a new chatroom
 func (m *ChatRoomManager) NewRoom(name, password string, isHidden bool) error {
-	err := make(chan error, 1)
-	m.creation <- struct {
-		name     string
-		password string
-		isHidden bool
-		err      chan error
-	}{
-		name,
-		password,
-		isHidden,
-		err,
+	m.RLock()
+	if _, ok := m.rooms[name]; ok {
+		m.RUnlock()
+		return fmt.Errorf("Chatroom with name (%s) already exists", name)
 	}
-	return <-err
+	m.RUnlock()
+
+	room, err := NewChatRoom(m.db, name, password, isHidden)
+	if err != nil {
+		return err
+	}
+
+	m.Lock()
+	defer m.Unlock()
+	m.rooms[name] = room
+	room.Run()
+
+	return nil
 }
 
 // Interact with a chatroom by name and a callback function
 func (m *ChatRoomManager) Interact(name string, f func(*ChatRoom)) error {
-	err := make(chan error, 1)
-	m.requests <- struct {
-		name string
-		f    func(*ChatRoom)
-		err  chan error
-	}{
-		name,
-		f,
-		err,
+	m.RLock()
+	defer m.RUnlock()
+	room, ok := m.rooms[name]
+	if !ok {
+		return fmt.Errorf("Chatroom with name (%s) does not exist", name)
 	}
-	return <-err
+
+	f(room)
+	return nil
+}
+
+// GetRooms returns information about all chatrooms
+func (m *ChatRoomManager) GetRooms() (rooms []websock.Room) {
+	m.RLock()
+	defer m.RUnlock()
+	for roomname, room := range m.rooms {
+		rooms = append(rooms, websock.Room{
+			Name:        roomname,
+			HasPassword: room.HasPassword(),
+			OnlineUsers: room.UserCount(),
+		})
+	}
+	return
 }
