@@ -1,6 +1,10 @@
 language: go
 go:
 - '1.11'
+services:
+    - mongodb
+env:
+    - MONGODB_URI=mongodb://localhost MONGODB_NAME=go-e2ee-chat-engine
 before_script:
     - go get golang.org/x/tools/cmd/cover
     - go get github.com/mattn/goveralls
