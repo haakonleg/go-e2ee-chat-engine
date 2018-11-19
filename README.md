@@ -36,20 +36,23 @@ The available message types that can be sent over the websocket are defined in `
 ## Build
 The project consists of two executables: the server and the example client.
 
-The preffered method to build the server is via docker-compose. Simply run this command in the project root directory:
+### Server
+The preferred method to build the server is via docker-compose. Simply run this command in the project root directory:
 ```
 sudo docker-compose up -d --build
 ```
 
+### Client
 To build the client run this command in the root directory:
 ```
 go build -o client cmd/client/*
 ```
+Then simply execute the executable in the terminal (the client is using a terminal-based UI).
 
-For a demo of the project without deploying the server yourself you can connect to this heroku deployment with the client:
+For a demo of the project without deploying the server yourself you can connect to this heroku deployment using the client:
 wss://go-e2ee-chat-engine.herokuapp.com/
 
-That heroku deployment uses TSL for communication (Websocket Secure) and thus should be fairly secure.
+This heroku deployment uses TLS for communication (Websocket Secure) and thus should be fairly secure.
 
 ## Screenshots
 
