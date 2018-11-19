@@ -9,8 +9,22 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-// Msg is the decoder for messages sent over the websocket
-var Msg = websocket.Codec{Marshal: marshalMessage, Unmarshal: unmarshalMessage}
+// codec is the decoder for messages sent over the websocket
+var codec = websocket.Codec{Marshal: marshalMessage, Unmarshal: unmarshalMessage}
+
+// Send sends a message to the connection synchronously
+//
+// NB! This will fail if the given message contains incompatible type and content
+func Send(ws *websocket.Conn, msg *Message) error {
+	return codec.Send(ws, msg)
+}
+
+// Receive fetches a message from the connection synchronously
+//
+// NB! This will fail if the received message contains incompatible type and content
+func Receive(ws *websocket.Conn, msg *Message) error {
+	return codec.Receive(ws, msg)
+}
 
 // Register types for gob encoding/decoding
 func init() {

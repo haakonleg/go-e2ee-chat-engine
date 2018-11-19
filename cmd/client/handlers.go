@@ -24,7 +24,7 @@ func (c *Client) createUserHandler(server string, username string) {
 		Username:  username,
 		PublicKey: util.MarshalPublic(pubKey)}
 
-	websock.Msg.Send(c.ws, &websock.Message{Type: websock.RegisterUser, Message: regUserMsg})
+	websock.Send(c.ws, &websock.Message{Type: websock.RegisterUser, Message: regUserMsg})
 
 	_, err := c.wsReader.GetNext()
 	if err != nil {
@@ -59,7 +59,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	}
 
 	// Send log in request to server
-	websock.Msg.Send(c.ws, &websock.Message{Type: websock.LoginUser, Message: username})
+	websock.Send(c.ws, &websock.Message{Type: websock.LoginUser, Message: username})
 
 	// Receive auth challenge from server
 	res, err := c.wsReader.GetNext()
@@ -78,7 +78,7 @@ func (c *Client) loginUserHandler(server string, username string) {
 	log.Println(decKey)
 
 	// Send decrypted auth key to server
-	websock.Msg.Send(c.ws, &websock.Message{Type: websock.AuthChallengeResponse, Message: decKey})
+	websock.Send(c.ws, &websock.Message{Type: websock.AuthChallengeResponse, Message: decKey})
 
 	// Check response from server
 	if res, err = c.wsReader.GetNext(); err != nil {
@@ -100,7 +100,7 @@ func (c *Client) createRoomHandler(name, password string, isHidden bool) {
 		Password: password,
 		IsHidden: isHidden}
 
-	websock.Msg.Send(c.ws, &websock.Message{Type: websock.CreateChatRoom, Message: req})
+	websock.Send(c.ws, &websock.Message{Type: websock.CreateChatRoom, Message: req})
 
 	if _, err := c.wsReader.GetNext(); err != nil {
 		c.gui.ShowDialog(err.Error(), nil)
@@ -109,7 +109,7 @@ func (c *Client) createRoomHandler(name, password string, isHidden bool) {
 
 func (c *Client) getChatRooms() (*websock.GetChatRoomsResponseMessage, error) {
 	// Send request for chat rooms
-	websock.Msg.Send(c.ws, &websock.Message{Type: websock.GetChatRooms})
+	websock.Send(c.ws, &websock.Message{Type: websock.GetChatRooms})
 
 	// Get chat rooms response from server
 	res, err := c.wsReader.GetNext()
@@ -126,7 +126,7 @@ func (c *Client) joinChatHandler(name, password string) {
 		Name:     name,
 		Password: password}
 
-	websock.Msg.Send(c.ws, &websock.Message{Type: websock.JoinChat, Message: req})
+	websock.Send(c.ws, &websock.Message{Type: websock.JoinChat, Message: req})
 
 	if _, err := c.wsReader.GetNext(); err != nil {
 		c.gui.ShowDialog(err.Error(), nil)

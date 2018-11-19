@@ -30,14 +30,14 @@ type WSReader struct {
 func (wr *WSReader) Reader() {
 	for {
 		msg := new(websock.Message)
-		err := websock.Msg.Receive(wr.Ws, msg)
+		err := websock.Receive(wr.Ws, msg)
 		if err != nil {
 			log.Println(err)
 			break
 		}
 
 		if msg.Type == websock.Ping {
-			websock.Msg.Send(wr.Ws, &websock.Message{Type: websock.Pong})
+			websock.Send(wr.Ws, &websock.Message{Type: websock.Pong})
 		} else if msg.Type == websock.Error {
 			wr.c <- Result{Message: nil, Err: errors.New(msg.Message.(string))}
 		} else {
