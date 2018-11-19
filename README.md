@@ -34,15 +34,18 @@ The communication between clients and servers are realized using [Websockets](ht
 The available message types that can be sent over the websocket are defined in `websock/messages.go`. Each message is contained in the struct `Message` which contains the type and contents of the message. For serialization of messages we use [gob](https://golang.org/pkg/encoding/gob/).
 
 ## Build
+
 The project consists of two executables: the server and the example client.
 
 ### Server
+
 The preferred method to build the server is via docker-compose. Simply run this command in the project root directory:
 ```
 sudo docker-compose up -d --build
 ```
 
 ### Client
+
 To build the client run this command in the root directory:
 ```
 go build -o client cmd/client/*
@@ -50,7 +53,7 @@ go build -o client cmd/client/*
 Then simply execute the executable in the terminal (the client is using a terminal-based UI).
 
 For a demo of the project without deploying the server yourself you can connect to this heroku deployment using the client:
-wss://go-e2ee-chat-engine.herokuapp.com/
+[`wss://go-e2ee-chat-engine.herokuapp.com/`]().
 
 This heroku deployment uses TLS for communication (Websocket Secure) and thus should be fairly secure.
 
@@ -83,9 +86,9 @@ The original plan was to create a end-to-end encrypted chat engine. A simplistic
 
 One hard part of the project was defining how the server would internally pass messages between connected clients. Because each client is running in a separate goroutine in the server, we need to make sure that we do not get deadlocks or race conditions.
 
-At first the communication between clients was organized by a global map behind a mutex. This was embedded into the state of the server. This meant that in every handler we had to make sure that we did not read nor write to the map without obtaining the mutex. This was hard to manage and as the project scaled it was not sustainable. Hence we ended up moving the map of users into a separate struct which would be implemented in a threadsafe way. The goal of this implementation was to provide an API of the type which would satisfy the needs of the application, which encapsulating most of the mutexes. This proved to be challanging. In the end we managed to create an API which would access users and their connections threadsafely, however the returned type was not a trivial type. To prevent race conditions when accessing the user object, we ended up adding a lock to the user object aswell. This means that you need to aquire a lock in the process of fetching the user, and then to read/write to the user object one would need to aquire the user's lock. This proved to be a slightly more ergonomic API to work with, however it requires careful handling to prevent deadlocks.
+At first the communication between clients was organized by a global map behind a mutex. This was embedded into the state of the server. This meant that in every handler we had to make sure that we did not read nor write to the map without obtaining the mutex. This was hard to manage and as the project scaled it was not sustainable. Hence we ended up moving the map of users into a separate struct which would be implemented in a threadsafe way. The goal of this implementation was to provide an API of the type which would satisfy the needs of the application, which encapsulating most of the mutexes. This proved to be challenging. In the end we managed to create an API which would access users and their connections threadsafely, however the returned type was not a trivial type. To prevent race conditions when accessing the user object, we ended up adding a lock to the user object as well. This means that you need to acquire a lock in the process of fetching the user, and then to read/write to the user object one would need to acquire the user's lock. This proved to be a slightly more ergonomic API to work with, however it requires careful handling to prevent deadlocks.
 
-As the API for communicating between clients was not optimal, work began to implement a channel-based solution. This solution was not completed in time, hence the project is still using the previously mentionned implementation. One of the reasons it was not completed in time was the ambtious re-engineering of the problem.
+As the API for communicating between clients was not optimal, work began to implement a channel-based solution. This solution was not completed in time, hence the project is still using the previously mentioned implementation. One of the reasons it was not completed in time was the ambtious re-engineering of the problem.
 
 ### what new has the group learned
 
