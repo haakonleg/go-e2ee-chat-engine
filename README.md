@@ -33,6 +33,24 @@ The communication between clients and servers are realized using [Websockets](ht
 
 The available message types that can be sent over the websocket are defined in `websock/messages.go`. Each message is contained in the struct `Message` which contains the type and contents of the message. For serialization of messages we use [gob](https://golang.org/pkg/encoding/gob/).
 
+## Build
+The project consists of two executables: the server and the example client.
+
+The preffered method to build the server is via docker-compose. Simply run this command in the project root directory:
+```
+sudo docker-compose up -d --build
+```
+
+To build the client run this command in the root directory:
+```
+go build -o client cmd/client/*
+```
+
+For a demo of the project without deploying the server yourself you can connect to this heroku deployment with the client:
+wss://go-e2ee-chat-engine.herokuapp.com/
+
+That heroku deployment uses TSL for communication (Websocket Secure) and thus should be fairly secure.
+
 ## Screenshots
 
 ![Login and registration screen](assets/login.jpg)
