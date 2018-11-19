@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"log"
 	"time"
 )
@@ -29,13 +30,14 @@ func MarshalPrivate(key *rsa.PrivateKey) []byte {
 }
 
 // UnmarshalPrivate unmarshals an RSA private key from byte format
-func UnmarshalPrivate(pemBlock []byte) (*rsa.PrivateKey, error) {
+func UnmarshalPrivate(pemBlock []byte) (key *rsa.PrivateKey, err error) {
 	data, _ := pem.Decode(pemBlock)
-	key, err := x509.ParsePKCS1PrivateKey(data.Bytes)
-	if err != nil {
-		return nil, err
+	if data == nil {
+		err = errors.New("Private key was not in the correct PEM format")
+		return
 	}
-	return key, nil
+	key, err = x509.ParsePKCS1PrivateKey(data.Bytes)
+	return
 }
 
 // MarshalPublic marshals an RSA public key to a byte slice
@@ -48,13 +50,14 @@ func MarshalPublic(key *rsa.PublicKey) []byte {
 }
 
 // UnmarshalPublic unmarshals an RSA public key from byte format
-func UnmarshalPublic(pemBlock []byte) (*rsa.PublicKey, error) {
+func UnmarshalPublic(pemBlock []byte) (key *rsa.PublicKey, err error) {
 	data, _ := pem.Decode(pemBlock)
-	key, err := x509.ParsePKCS1PublicKey(data.Bytes)
-	if err != nil {
-		return nil, err
+	if data == nil {
+		err = errors.New("Public key was not in the correct PEM format")
+		return
 	}
-	return key, nil
+	key, err = x509.ParsePKCS1PublicKey(data.Bytes)
+	return
 }
 
 // NowMillis returns the current unix millisecond timestamp
