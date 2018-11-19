@@ -96,7 +96,7 @@ func (s *Server) NoAuthHandler(ws *websocket.Conn, pongCount *int64) bool {
 	// Listen for messages from unauthenticated clients
 	for {
 		msg := new(websock.Message)
-		if err := websock.Msg.Receive(ws, msg); err != nil {
+		if err := websock.Receive(ws, msg); err != nil {
 			log.Println(err)
 			return false
 		}
@@ -123,7 +123,7 @@ func (s *Server) AuthedHandler(ws *websocket.Conn, pongCount *int64) {
 	// Listen for messages from authenticated clients
 	for {
 		msg := new(websock.Message)
-		if err := websock.Msg.Receive(ws, msg); err != nil {
+		if err := websock.Receive(ws, msg); err != nil {
 			log.Println(err)
 			break
 		}
@@ -162,7 +162,7 @@ func (s *Server) Pinger(ws *websocket.Conn) (*time.Ticker, *int64) {
 				return
 			}
 
-			websock.Msg.Send(ws, &websock.Message{Type: websock.Ping})
+			websock.Send(ws, &websock.Message{Type: websock.Ping})
 			atomic.StoreInt64(&pongCount, 0)
 		}
 	}()

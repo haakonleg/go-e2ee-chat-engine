@@ -137,11 +137,11 @@ func (s *Server) RegisterUser(ws *websocket.Conn, msg *websock.RegisterUserMessa
 	// Add new user to database
 	user := mdb.NewUser(msg.Username, msg.PublicKey)
 	if err := s.Db.Insert(mdb.Users, user); err != nil {
-		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Error registering user"})
+		websock.Send(ws, &websock.Message{Type: websock.Error, Message: "Error registering user"})
 		return
 	}
 
-	websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "User registered"})
+	websock.Send(ws, &websock.Message{Type: websock.OK, Message: "User registered"})
 }
 
 // LoginUser authenticates a user using a randomly generated authentication token
@@ -152,16 +152,16 @@ func (s *Server) LoginUser(ws *websocket.Conn, username string) bool {
 	// Create new user object
 	newUser, encKey, err := NewUser(s.Db, username)
 	if err != nil {
-		websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "User does not exist"})
+		websock.Send(ws, &websock.Message{Type: websock.Error, Message: "User does not exist"})
 		return false
 	}
 
 	// Send auth challenge
-	websock.Msg.Send(ws, &websock.Message{Type: websock.AuthChallenge, Message: encKey})
+	websock.Send(ws, &websock.Message{Type: websock.AuthChallenge, Message: encKey})
 
 	// Receive auth challenge response
 	res := new(websock.Message)
-	if err := websock.Msg.Receive(ws, res); err != nil {
+	if err := websock.Receive(ws, res); err != nil {
 		log.Println(err)
 		return false
 	}
@@ -170,11 +170,11 @@ func (s *Server) LoginUser(ws *websocket.Conn, username string) bool {
 	if newUser.KeyMatches(res.Message.([]byte)) {
 		log.Printf("Client %s authenticated as user %s\n", ws.Request().RemoteAddr, newUser.Username)
 		s.AddClient(ws, newUser)
-		websock.Msg.Send(ws, &websock.Message{Type: websock.OK, Message: "Logged in"})
+		websock.Send(ws, &websock.Message{Type: websock.OK, Message: "Logged in"})
 		return true
 	}
 
-	websock.Msg.Send(ws, &websock.Message{Type: websock.Error, Message: "Invalid auth key"})
+	websock.Send(ws, &websock.Message{Type: websock.Error, Message: "Invalid auth key"})
 	return false
 }
 

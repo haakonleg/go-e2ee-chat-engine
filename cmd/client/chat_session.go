@@ -114,11 +114,11 @@ func (cs *ChatSession) SendChatMessage(message string) {
 		req.EncryptedContent[user.Username] = encMsg
 	}
 
-	websock.Msg.Send(cs.Socket, &websock.Message{Type: websock.SendChat, Message: req})
+	websock.Send(cs.Socket, &websock.Message{Type: websock.SendChat, Message: req})
 }
 
 // LeaveChat is called when a user decides to leave a chat room. The client sends a message
 // notifying the server that the client has left the chat room.
 func (cs *ChatSession) LeaveChat() {
-	websock.Msg.Send(cs.Socket, &websock.Message{Type: websock.LeaveChat})
+	websock.Send(cs.Socket, &websock.Message{Type: websock.LeaveChat})
 }
