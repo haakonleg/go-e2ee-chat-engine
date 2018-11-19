@@ -21,7 +21,7 @@ This project realizes end-to-end encryption in group chat scenarios (such as wit
 
 When a user joins a chat session, the public key of each user is sent by the server to every other participant in that chat room. Likewise, when a new user joins each participant of the chat room is notified about the new clients key. This is done so that clients can communicate with each other without ever exposing any unencrypted contents of a chat message while the message is transported accross the internet. Encryption/decryption of messages is only done client-side, thus realizing end-to-end encryption.
 
-At the moment, a client must create N encrypted copies of a message for N participating clients in a chat room. This is not an optimal solution. In the future a better solution would be to use a symmetric encryption algorithm (AES), and let each client generate
+At the moment, a client must create N encrypted copies of a message for N participating clients in a chat room. This is not an optimal solution. In the future a better solution would be to combine public key encryption with symmetric encryption algorithm (AES), and let each client generate a random encryption key which is encrypted with each recipients public key.
 
 ## Authentication
 
