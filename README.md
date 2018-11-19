@@ -32,6 +32,10 @@ The available message types that can be sent over the websocket are defined in `
 
 ## Screenshots
 
+![Login and registration screen](assets/login.jpg)
+![Chatroom picker with password protected and hidden chatrooms](assets/lobby.jpg)
+![End-to-end encrypted chatting](assets/chat.jpg)
+
 ## Project report
 
 ## Todo
