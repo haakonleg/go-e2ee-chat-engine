@@ -57,25 +57,22 @@ func CreateConnection(mongoURL, dbName string) (*Database, error) {
 func (db *Database) DeleteAll() {
 	var err error
 
-	// Indexes for users
 	c := db.session.DB(db.dbName).C(Users.String())
-	err = c.DropAllIndexes()
+	err = c.DropCollection()
 	if err != nil {
-		log.Printf("Unable to drop indexes of %s: %s\n", Users.String(), err)
+		log.Printf("Unable to drop collection (%s): %s\n", Users.String(), err)
 	}
 
-	// Indexes for chat rooms
 	c = db.session.DB(db.dbName).C(ChatRooms.String())
-	err = c.DropAllIndexes()
+	err = c.DropCollection()
 	if err != nil {
-		log.Printf("Unable to drop indexes of %s: %s\n", ChatRooms.String(), err)
+		log.Printf("Unable to drop collection (%s): %s\n", ChatRooms.String(), err)
 	}
 
-	// Indexes for messages
 	c = db.session.DB(db.dbName).C(Messages.String())
-	err = c.DropAllIndexes()
+	err = c.DropCollection()
 	if err != nil {
-		log.Printf("Unable to drop indexes of %s: %s\n", Messages.String(), err)
+		log.Printf("Unable to drop collection (%s): %s\n", Messages.String(), err)
 	}
 }
 
