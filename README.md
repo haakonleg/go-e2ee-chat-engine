@@ -34,6 +34,38 @@ The available message types that can be sent over the websocket are defined in `
 
 ## Project report
 
+### brief description of the original project plan, and what has and has not been achieved/changed in the final product
+
+The original plan was to create a end-to-end encrypted chat engine. A simplistic TUI (Terminal User Interface) has been created as a proof of concept for the features of the server.
+
+- Clients can participate in end-to-end encrypted chatrooms where each message is individually encrypted for each participant using RSA.
+- Clients can quickly get an overview over how many users are currently logged on.
+- Clients can create new chatrooms which may be both password protected and/or hidden from general view.
+- Clients can login without using a password because the username is tied to the RSA keypair. This means that users have one less password to worry about.
+
+- There are no admins or moderators to moderate or control the contents of the chatrooms.
+- A user must be logged into a chatroom to receive messages.
+
+### reflection of what went well and what went wrong with the project
+
+- Rewrite of connection handling not completed due to the size of the task
+- ??
+
+### reflection on the hard aspects of the project
+
+One hard part of the project was defining how the server would internally pass messages between connected clients. Because each client is running in a separate goroutine in the server, we need to make sure that we do not get deadlocks or race conditions.
+
+At first the communication between clients was organized by a global map behind a mutex. This was embedded into the state of the server. This meant that in every handler we had to make sure that we did not read nor write to the map without obtaining the mutex. This was hard to manage and as the project scaled it was not sustainable. Hence we ended up moving the map of users into a separate struct which would be implemented in a threadsafe way. The goal of this implementation was to provide an API of the type which would satisfy the needs of the application, which encapsulating most of the mutexes. This proved to be challanging. In the end we managed to create an API which would access users and their connections threadsafely, however the returned type was not a trivial type. To prevent race conditions when accessing the user object, we ended up adding a lock to the user object aswell. This means that you need to aquire a lock in the process of fetching the user, and then to read/write to the user object one would need to aquire the user's lock. This proved to be a slightly more ergonomic API to work with, however it requires careful handling to prevent deadlocks.
+
+As the API for communicating between clients was not optimal, work began to implement a channel-based solution. This solution was not completed in time, hence the project is still using the previously mentionned implementation. One of the reasons it was not completed in time was the ambtious re-engineering of the problem.
+
+### what new has the group learned
+
+One thing we have learned is that working in small incremental steps is normally beneficial. The ambtious rewrite of the client manager ended up engulfing more time and resources than expected. This is perhaps a sign that one should always try to go with the simplest solution for a problem, unless there is a good reason to invest more time.
+
+### total work hours dedicated to the project cumulatively by the group
+
+
 ## Todo
 
 - ~~Add ability to set a password for a chat room.~~
