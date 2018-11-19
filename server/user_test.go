@@ -5,35 +5,8 @@ import (
 	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
 	"golang.org/x/net/websocket"
-	"net/http/httptest"
 	"testing"
 )
-
-var testserver *Server
-var wsserver *httptest.Server
-
-// Valid keys
-var prikey *rsa.PrivateKey
-var pubkey *rsa.PublicKey
-var sprikey *rsa.PrivateKey
-var spubkey *rsa.PublicKey
-
-// Invalid keys
-var invalidsmallpubkey *rsa.PublicKey
-var invalidsmallprikey *rsa.PrivateKey
-var invalidbigpubkey *rsa.PublicKey
-var invalidbigprikey *rsa.PrivateKey
-
-func init() {
-	prikey, pubkey = setupTestKeys(2048)
-	sprikey, spubkey = setupTestKeys(2048)
-
-	invalidsmallprikey, invalidsmallpubkey = setupTestKeys(512)
-	invalidbigprikey, invalidbigpubkey = setupTestKeys(4096)
-
-	// Start server
-	testserver, wsserver = setupTestServer()
-}
 
 func TestCreateValidUsers(t *testing.T) {
 	pkm := util.MarshalPublic(pubkey)

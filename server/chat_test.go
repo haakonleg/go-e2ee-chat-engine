@@ -1,9 +1,10 @@
 package server
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCreateChatRoom(t *testing.T) {
-
 }
 
 func TestJoinChat(t *testing.T) {
