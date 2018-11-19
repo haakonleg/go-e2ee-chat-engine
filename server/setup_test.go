@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/haakonleg/go-e2ee-chat-engine/util"
 	"github.com/haakonleg/go-e2ee-chat-engine/websock"
 )
 
@@ -84,6 +85,22 @@ func setupTestKeys(testKeySize int) (priKey *rsa.PrivateKey, pubKey *rsa.PublicK
 	return
 }
 
+func setupTestUser(username string, pk *rsa.PublicKey, pki *rsa.PrivateKey) (ws *websocket.Conn, err error) {
+	ws, err = websocket.Dial(wsserver.URL, "", "http://")
+	if err != nil {
+		err = fmt.Errorf("Unable to connect to websocket at '%s': %s", wsserver.URL, err)
+		return
+	}
+
+	if err = registerUser(ws, username, util.MarshalPublic(pk)); err != nil {
+		return
+	}
+
+	err = loginUser(ws, username, pki)
+
+	return
+}
+
 func registerUser(ws *websocket.Conn, username string, pubkey []byte) error {
 	// Send a request to register the user
 	err := websock.Send(ws, &websock.Message{
@@ -112,7 +129,7 @@ func registerUser(ws *websocket.Conn, username string, pubkey []byte) error {
 	}
 }
 
-func loginUser(ws *websocket.Conn, username string, prikey *rsa.PrivateKey) error {
+func loginUser(ws *websocket.Conn, username string, pki *rsa.PrivateKey) error {
 	err := websock.Send(ws, &websock.Message{
 		Type:    websock.LoginUser,
 		Message: username,
@@ -135,7 +152,7 @@ func loginUser(ws *websocket.Conn, username string, prikey *rsa.PrivateKey) erro
 	}
 
 	// Try to decrypt auth challenge
-	decKey, err := rsa.DecryptPKCS1v15(nil, prikey, msg.Message.([]byte))
+	decKey, err := rsa.DecryptPKCS1v15(nil, pki, msg.Message.([]byte))
 	if err != nil {
 		return fmt.Errorf("Unable to decrypt auth challange: %s", err)
 	}
