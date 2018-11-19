@@ -27,7 +27,7 @@ func setupTestServer() (testserver *Server, wsserver *httptest.Server) {
 	serverConfig := Config{
 		DBName:    dbName,
 		MongoURL:  mongoURI,
-		Keepalive: 100,
+		Keepalive: 100000,
 	}
 
 	testserver = CreateServer(serverConfig)
