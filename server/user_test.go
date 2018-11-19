@@ -11,152 +11,137 @@ import (
 
 var testserver *Server
 var wsserver *httptest.Server
-var priKey *rsa.PrivateKey
-var pubKey *rsa.PublicKey
+
+// Valid keys
+var prikey *rsa.PrivateKey
+var pubkey *rsa.PublicKey
+var sprikey *rsa.PrivateKey
+var spubkey *rsa.PublicKey
+
+// Invalid keys
+var invalidsmallpubkey *rsa.PublicKey
+var invalidsmallprikey *rsa.PrivateKey
+var invalidbigpubkey *rsa.PublicKey
+var invalidbigprikey *rsa.PrivateKey
 
 func init() {
-	priKey, pubKey = setupTestKeys(2048)
+	prikey, pubkey = setupTestKeys(2048)
+	sprikey, spubkey = setupTestKeys(2048)
+
+	invalidsmallprikey, invalidsmallpubkey = setupTestKeys(512)
+	invalidbigprikey, invalidbigpubkey = setupTestKeys(4096)
+
 	// Start server
 	testserver, wsserver = setupTestServer()
 }
 
-func TestWebsocketConnetion(t *testing.T) {
-	ws, err := websocket.Dial(wsserver.URL, "", "http://")
-	defer ws.Close()
-	if err != nil {
-		t.Fatalf("Unable to connect to websocket at '%s': %s\n", wsserver.URL, err)
+func TestCreateValidUsers(t *testing.T) {
+	pkm := util.MarshalPublic(pubkey)
+	for _, username := range []string{
+		"john",
+		"chris",
+		"mandananla2",
+	} {
+		ws, err := websocket.Dial(wsserver.URL, "", "http://")
+		defer ws.Close()
+		if err != nil {
+			t.Fatalf("Unable to connect to websocket at '%s': %s\n", wsserver.URL, err)
+		}
+		if err := registerUser(ws, username, pkm); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
-func TestCreateUser(t *testing.T) {
+func TestLoginValidUser(t *testing.T) {
 	ws, err := websocket.Dial(wsserver.URL, "", "http://")
 	defer ws.Close()
 	if err != nil {
 		t.Fatalf("Unable to connect to websocket at '%s': %s\n", wsserver.URL, err)
 	}
 
-	// Send a request to register the user
-	err = websock.Send(ws, &websock.Message{
-		Type: websock.RegisterUser,
-		Message: &websock.RegisterUserMessage{
-			Username:  "createuser",
-			PublicKey: util.MarshalPublic(pubKey),
-		},
-	})
-	if err != nil {
-		t.Fatalf("Unable to send register user request: %s", err.Error())
+	if err := registerUser(ws, "validuser", util.MarshalPublic(pubkey)); err != nil {
+		t.Fatal(err)
 	}
 
-	msg := new(websock.Message)
-	err = websock.Receive(ws, msg)
-	if err != nil {
-		t.Fatalf("Error when receiving message from server: %s\n", err)
+	if err := loginUser(ws, "validuser", prikey); err != nil {
+		t.Fatal(err)
 	}
-	switch msg.Type {
-	case websock.OK:
-	case websock.Error:
-		t.Fatalf("Response of register user was an error: %s\n", msg.Message.(string))
-	default:
-		t.Fatalf("Response of register user was non-ok (%d) type\n", msg.Type)
 
-	}
 }
 
-func TestLoginUser(t *testing.T) {
+func TestLoginNonexistentUsername(t *testing.T) {
 	ws, err := websocket.Dial(wsserver.URL, "", "http://")
 	defer ws.Close()
 	if err != nil {
 		t.Fatalf("Unable to connect to websocket at '%s': %s\n", wsserver.URL, err)
-	}
-
-	// Send a request to register the user
-	err = websock.Send(ws, &websock.Message{
-		Type: websock.RegisterUser,
-		Message: &websock.RegisterUserMessage{
-			Username:  "loginuser",
-			PublicKey: util.MarshalPublic(pubKey),
-		},
-	})
-
-	if err != nil {
-		t.Fatalf("Unable to send register user request: %s", err.Error())
-	}
-
-	msg := new(websock.Message)
-	err = websock.Receive(ws, msg)
-	if err != nil {
-		t.Fatalf("Error when receiving message from server: %s\n", err)
-	}
-	switch msg.Type {
-	case websock.OK:
-	case websock.Error:
-		t.Fatalf("Response of register user was an error: %s\n", msg.Message.(string))
-	default:
-		t.Fatalf("Response of register user was non-ok (%d) type\n", msg.Type)
 	}
 
 	// Send login request to server
 	err = websock.Send(ws, &websock.Message{
 		Type:    websock.LoginUser,
-		Message: "loginuser",
+		Message: "doesnotexist",
 	})
 
 	// Receive auth challenge from server
+	msg := new(websock.Message)
 	err = websock.Receive(ws, msg)
 	if err != nil {
 		t.Fatalf("Error when receiving message from server: %s\n", err)
 	}
+
 	switch msg.Type {
+	case websock.Error:
 	case websock.AuthChallenge:
-	case websock.Error:
-		t.Fatalf("Response of login user was an error: %s\n", msg.Message.(string))
+		t.Fatalf("Response of login user for non-existent user was an auth challenge")
 	default:
-		t.Fatalf("Response of login user was non-auth-challenge (%d) type\n", msg.Type)
-	}
-
-	// Try to decrypt auth challenge
-	decKey, err := rsa.DecryptPKCS1v15(nil, priKey, msg.Message.([]byte))
-	if err != nil {
-		t.Fatalf("Unable to decrypt auth challange: %s\n", err)
-	}
-
-	// Send decrypted auth key to server
-	err = websock.Send(ws, &websock.Message{
-		Type:    websock.AuthChallengeResponse,
-		Message: decKey,
-	})
-	if err != nil {
-		t.Fatalf("Error when receiving message from server: %s\n", err)
-	}
-
-	// Receive auth challenge response from server
-	err = websock.Receive(ws, msg)
-	if err != nil {
-		t.Fatalf("Error when receiving message from server: %s\n", err)
-	}
-	switch msg.Type {
-	case websock.OK:
-	case websock.Error:
-		t.Fatalf("Response of auth challenge response was an error: %s\n", msg.Message.(string))
-	default:
-		t.Fatalf("Response of auth challenge response was non-ok (%d) type\n", msg.Type)
+		t.Fatalf("Response of login user was non-error type (%d)", msg.Type)
 	}
 }
 
-func TestInvalidUserData(t *testing.T) {
+func TestLoginInvalidKeyUser(t *testing.T) {
 	ws, err := websocket.Dial(wsserver.URL, "", "http://")
 	defer ws.Close()
 	if err != nil {
 		t.Fatalf("Unable to connect to websocket at '%s': %s\n", wsserver.URL, err)
 	}
 
-	validKey := util.MarshalPublic(pubKey)
+	if err := registerUser(ws, "invalidkeyuser", util.MarshalPublic(pubkey)); err != nil {
+		t.Fatal(err)
+	}
 
-	_, _smallkey := setupTestKeys(512)
-	smallkey := util.MarshalPublic(_smallkey)
+	// Send login request to server
+	err = websock.Send(ws, &websock.Message{
+		Type:    websock.LoginUser,
+		Message: "invalidkeyuser",
+	})
 
-	_, _bigkey := setupTestKeys(4096)
-	bigkey := util.MarshalPublic(_bigkey)
+	// Receive auth challenge from server
+	msg := new(websock.Message)
+	err = websock.Receive(ws, msg)
+	if err != nil {
+		t.Fatalf("Error when receiving message from server: %s", err)
+	}
+	switch msg.Type {
+	case websock.AuthChallenge:
+	case websock.Error:
+		t.Fatalf("Response of login user was an error: %s", msg.Message.(string))
+	default:
+		t.Fatalf("Response of login user was non-auth-challenge type (%d)", msg.Type)
+	}
+
+	// Try to decrypt auth challenge
+	_, err = rsa.DecryptPKCS1v15(nil, sprikey, msg.Message.([]byte))
+	if err == nil {
+		t.Fatal("Was able to decrypt auth challenge with wrong private key")
+	}
+}
+
+func TestRegisterInvalidUser(t *testing.T) {
+
+	validKey := util.MarshalPublic(pubkey)
+	smallkey := util.MarshalPublic(invalidsmallpubkey)
+	bigkey := util.MarshalPublic(invalidbigpubkey)
 
 	for _, v := range []struct {
 		name string
@@ -176,31 +161,17 @@ func TestInvalidUserData(t *testing.T) {
 		{"bigjohn", bigkey},
 		{"smalljohn", smallkey},
 	} {
-		// Send a request to register the user
-		err = websock.Send(ws, &websock.Message{
-			Type: websock.RegisterUser,
-			Message: &websock.RegisterUserMessage{
-				Username:  v.name,
-				PublicKey: v.key,
-			},
-		})
 
+		ws, err := websocket.Dial(wsserver.URL, "", "http://")
+		defer ws.Close()
 		if err != nil {
-			t.Fatalf("Unable to send register user request: %s", err.Error())
+			t.Fatalf("Unable to connect to websocket at '%s': %s\n", wsserver.URL, err)
 		}
 
-		msg := new(websock.Message)
-		err = websock.Receive(ws, msg)
-		if err != nil {
-			t.Fatalf("Error when receiving message from server: %s\n", err)
-		}
-		switch msg.Type {
-		case websock.OK:
-			t.Fatalf("Response of register user (%s) was ok despite invalid\n", v.name)
-		case websock.Error:
-			t.Logf("Response was error as expected for user (%s): %s\n", v.name, msg.Message.(string))
-		default:
-			t.Fatalf("Response of register user was non-ok (%d) type for user (%s)\n", msg.Type, v.name)
+		if err := registerUser(ws, v.name, v.key); err == nil {
+			t.Logf("Got expected error for (%s): %s", v.name, err)
+		} else {
+			t.Fatalf("Got unexpected ok when registrating (%s)", v.name)
 		}
 	}
 }
