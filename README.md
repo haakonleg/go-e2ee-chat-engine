@@ -80,6 +80,7 @@ The original plan was to create a end-to-end encrypted chat engine. As a proof o
 
 - There is no concept of moderators to control the contents of the chatrooms.
 - A client cannot see messages sent when not logged in to a chatroom.
+- A client can only be part of a single chatroom at a time.
 
 ### Things that went well
 
