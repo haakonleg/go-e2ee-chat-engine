@@ -118,6 +118,10 @@ Small changes are easy to grasp and review for other project members, however it
 
 We had not written tests until far into the project. The interaction with databases and network connections make testing difficult so it's easy to ignore it. This meant that we had manually test the service after each change was made. This made it easy to introduce bugs and resulted in mistakes which could have been caught earlier. Writing tests before implementing features could be beneficial for a future project.
 
+- Working with Git and GitHub
+
+One of the contributors to the project was more experienced with Git than the other person, so I (haakonleg) learned a lot about the usage of Git. Specifically the usage of pull requests on GitHub, writing better commit messages, and rebasing. I had touched on these topics before, but never really used them in practice, so this was a valuable experience.
+
 ### Total work hours
 
 Approximately 50 hours of work.
