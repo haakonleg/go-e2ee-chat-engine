@@ -67,7 +67,7 @@ This heroku deployment uses TLS for communication (Websocket Secure) and thus sh
 
 ### The original project plan
 
-The original plan was to create a end-to-end encrypted chat engine. As a proof of concept of the features we created a simplistic TUI (Terminal User Interface).
+The original plan was to create a end-to-end encrypted chat engine. As a proof of concept we created a simplistic TUI (Terminal User Interface) which interacts with the server.
 
 ### Achieved goals
 
