@@ -74,7 +74,7 @@ The original plan was to create a end-to-end encrypted chat engine. As a proof o
 - Clients can participate in end-to-end encrypted chatrooms where each message is individually encrypted for each participant using RSA.
 - Clients can quickly get an overview over how many users are currently logged on, and show a list of public chat rooms and participate in said chat rooms.
 - Clients can create new chatrooms which may be both password protected and/or hidden from general view (users must explicitly type in the name of the chat room to join hidden rooms).
-- Clients can login without using a password because the username is tied to the RSA public key. Authentication is performed using a simple challenge-response scheme. This means that users have one less password to worry about.
+- Clients can login without using a password because the username is tied to the RSA public key. Authentication is performed using a simple challenge-response scheme.
 
 ### Unachieved goals
 
