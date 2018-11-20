@@ -72,21 +72,21 @@ The original plan was to create a end-to-end encrypted chat engine. As a proof o
 ### Achieved goals
 
 - Clients can participate in end-to-end encrypted chatrooms where each message is individually encrypted for each participant using RSA.
-- Clients can quickly get an overview over how many users are currently logged on.
-- Clients can create new chatrooms which may be both password protected and/or hidden from general view.
-- Clients can login without using a password because the username is tied to the RSA keypair. This means that users have one less password to worry about.
+- Clients can quickly get an overview over how many users are currently logged on, and show a list of public chat rooms and participate in said chat rooms.
+- Clients can create new chatrooms which may be both password protected and/or hidden from general view (users must explicitly type in the name of the chat room to join hidden rooms).
+- Clients can login without using a password because the username is tied to the RSA public key. Authentication is performed using a simple challenge-response scheme. This means that users have one less password to worry about.
 
 ### Unachieved goals
 
-- There is no concept of moderators to control the contents of the chatrooms.
-- A client cannot see messages sent when not logged in to a chatroom.
-- A client can only be part of a single chatroom at a time.
+- There is no concept of moderators to control the contents of the chatrooms (we didn't have time to implement a concept of chat room owner/admin).
+- A client cannot see messages from a chat room when not currently participating in said chat room.
+- A client can only be part of a single chatroom at a time (ties into the above point).
 
 ### Things that went well
 
 - Project management within the group
 
-We used pull requests on Github to highlight what changes our new additions would bring to the codebase. This means that all changes to the codebase are announced and reviewed by the other person. I think this both improved code quality and made it easier to follow the direction in the project.
+We used a feature branch and pull requests workflow on Github to highlight what changes our new additions would bring to the codebase. This means that all changes to the codebase are announced and reviewed by the other person. I think this both improved code quality and made it easier to follow the direction in the project.
 
 - Integrating CI and deployment
 
