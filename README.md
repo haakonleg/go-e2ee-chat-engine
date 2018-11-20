@@ -65,44 +65,66 @@ This heroku deployment uses TLS for communication (Websocket Secure) and thus sh
 
 ## Project report
 
-### brief description of the original project plan, and what has and has not been achieved/changed in the final product
+### The original project plan
 
-The original plan was to create a end-to-end encrypted chat engine. A simplistic TUI (Terminal User Interface) has been created as a proof of concept for the features of the server.
+The original plan was to create a end-to-end encrypted chat engine. As a proof of concept of the features we created a simplistic TUI (Terminal User Interface).
+
+### Achieved goals
 
 - Clients can participate in end-to-end encrypted chatrooms where each message is individually encrypted for each participant using RSA.
 - Clients can quickly get an overview over how many users are currently logged on.
 - Clients can create new chatrooms which may be both password protected and/or hidden from general view.
 - Clients can login without using a password because the username is tied to the RSA keypair. This means that users have one less password to worry about.
 
+### Unachieved goals
+
 - There are no admins or moderators to moderate or control the contents of the chatrooms.
 - A user must be logged into a chatroom to receive messages.
 
-### reflection of what went well and what went wrong with the project
+### Things that went well
 
-- Rewrite of connection handling not completed. 
+- Project management within the group
 
-This means that the current handling could be subject to deadlocks if not properly handled. Using mutexes makes it very easy to make mistakes, hence this will probably impair further development of the service. However changing over to a different architecture would be a major refactor, because the use of mutexes is intertwined into the main server handlers. This is a good example of how tight coupling leads to systems which are hard to alter.
+We used pull requests on Github to highlight what changes our new additions would bring to the codebase. This means that all changes to the codebase are announced and reviewed by the other person. I think this both improved code quality and made it easier to follow the direction in the project.
 
-### reflection on the hard aspects of the project
+- Integrating CI and deployment
 
-One hard part of the project was defining how the server would internally pass messages between connected clients. Because each client is running in a separate goroutine in the server, we need to make sure that we do not get deadlocks or race conditions.
+Heroku makes it really easy to automatically deploy after the CI has completed successfully. This means that we know that the deployed version of the project is always the latest version which passed the CI. As this is our third project using Heroku it was really easy to setup the environment, as it is mostly similar to previous assignments.
 
-At first the communication between clients was organized by a global map behind a mutex. This was embedded into the state of the server. This meant that in every handler we had to make sure that we did not read nor write to the map without obtaining the mutex. This was hard to manage and as the project scaled it was not sustainable. Hence we ended up moving the map of users into a separate struct which would be implemented in a threadsafe way. The goal of this implementation was to provide an API of the type which would satisfy the needs of the application, which encapsulating most of the mutexes. This proved to be challenging. In the end we managed to create an API which would access users and their connections threadsafely, however the returned type was not a trivial type. To prevent race conditions when accessing the user object, we ended up adding a lock to the user object as well. This means that you need to acquire a lock in the process of fetching the user, and then to read/write to the user object one would need to acquire the user's lock. This proved to be a slightly more ergonomic API to work with, however it requires careful handling to prevent deadlocks.
+### Things that did not go well
 
-As the API for communicating between clients was not optimal, work began to implement a channel-based solution. This solution was not completed in time, hence the project is still using the previously mentioned implementation. One of the reasons it was not completed in time was the ambtious re-engineering of the problem.
+- Rewriting connection handling between users
 
-### what new has the group learned
+The current handling could be subject to deadlocks if not properly handled. Using mutexes makes it very easy to make mistakes, hence this will probably impair further development of the service. However changing over to a different architecture would be a major refactor, because the use of mutexes is intertwined into all connection handlers. This is a good example of how tight coupling leads to systems which are hard to alter.
 
-One thing we have learned is that working in small incremental steps is normally beneficial. The ambtious rewrite of the client manager ended up engulfing more time and resources than expected. This is perhaps a sign that one should always try to go with the simplest solution for a problem, unless there is a good reason to invest more time.
+### Hard aspects of the project
 
-### total work hours dedicated to the project cumulatively by the group
+One hard part of the project was defining how the server would internally pass messages between connected clients. Because each client is running in a separate goroutine, we need to make sure that we do not get deadlocks or race conditions.
 
-~50 hours of work
+At first the communication between clients was organized by a global map behind a mutex. This was embedded into the state of the server. This meant that in every handler we had to make sure that we did not read nor write to the map without obtaining the mutex. This was hard to manage and as the project scaled it was not sustainable.
 
-## Todo
+The second iteration moved the map of users into a separate struct which would be implemented in a threadsafe way. The goal of this implementation was to provide an API of the type which would satisfy the needs of the application, while still encapsulating most of the mutexes. This proved to be challenging to implement because of the need to iterate over the map. We created an API which would access users and their connections threadsafely, however we needed to protect the inner type using a mutex which would be exposed to the consumer. This proved to be a slightly more ergonomic API to work with, however it still requires careful handling to prevent deadlocks.
+
+As the API for communicating between clients was not optimal, work began to implement a channel-based solution. This solution was not completed in time mainly because the use of mutexes was tightly coupled into the connection handlers, so changing is time-consuming process.
+
+### Lessons learned
+
+- Working in as small steps as possible is normally beneficial
+
+Small changes are easy to grasp and review for other project members, however it is not always feasible to make small changes, and on bigger changes the commit message should provide some more information.
+
+- Start testing early
+
+We had not written tests until far into the project. The interaction with databases and network connections make testing difficult so it's easy to ignore it. This meant that we had manually test the service after each change was made. This made it easy to introduce bugs and resulted in mistakes which could have been caught earlier. Writing tests before implementing features could be beneficial for a future project.
+
+### Total work hours
+
+Approximatly 50 hours of work.
+
+## TODO
 
 - ~~Add ability to set a password for a chat room.~~
-- At the moment, a user cannot see messages that is sent when he is not in a chat room the moment it is sent (because clients in chat rooms are not tracked in the database, but in-memory on the server). Fix this.
+- At the moment, a user cannot see messages that is sent when he is not in a chat room the moment it is sent (because clients in chat rooms are not tracked in the database, but in-memory on the server).
 - Allow users to be part of multiple chat rooms (see above).
 - Add a server setting to purge old chat messages after a certain date (to avoid massive amounts of old messages)
 - Implement concept of a chat room admin/owner (and add ability to delete/rename chat room, kick/ban users)
