@@ -97,6 +97,7 @@ One thing we have learned is that working in small incremental steps is normally
 
 ### total work hours dedicated to the project cumulatively by the group
 
+~50 hours of work
 
 ## Todo
 
