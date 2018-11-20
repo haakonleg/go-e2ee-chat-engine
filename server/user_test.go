@@ -55,6 +55,9 @@ func TestLoginNonexistentUsername(t *testing.T) {
 		Type:    websock.LoginUser,
 		Message: "doesnotexist",
 	})
+	if err != nil {
+		t.Fatalf("Unable to send message to server: %s\n", err)
+	}
 
 	// Receive auth challenge from server
 	msg := new(websock.Message)
@@ -88,6 +91,9 @@ func TestLoginInvalidKeyUser(t *testing.T) {
 		Type:    websock.LoginUser,
 		Message: "invalidkeyuser",
 	})
+	if err != nil {
+		t.Fatalf("Unable to send message to server: %s\n", err)
+	}
 
 	// Receive auth challenge from server
 	msg := new(websock.Message)
