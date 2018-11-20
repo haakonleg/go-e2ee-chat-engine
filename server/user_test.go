@@ -144,7 +144,7 @@ func TestRegisterInvalidUser(t *testing.T) {
 		if err := registerUser(ws, v.name, v.key); err != nil {
 			t.Logf("Got expected error for (%s): %s", v.name, err)
 		} else {
-			t.Fatalf("Got unexpected ok when registrating (%s)", v.name)
+			t.Fatalf("Got unexpected ok when registration (%s)", v.name)
 		}
 	}
 }

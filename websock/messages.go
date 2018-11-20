@@ -4,9 +4,9 @@ package websock
 type MessageType int
 
 const (
-	// Error means that en error occured
+	// Error means that en error occurred
 	Error MessageType = iota
-	// OK means that the action was successfull
+	// OK means that the action was successful
 	OK
 
 	// RegisterUser is sent when a client wants to register a new user

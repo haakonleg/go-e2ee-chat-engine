@@ -154,7 +154,7 @@ func loginUser(ws *websocket.Conn, username string, pki *rsa.PrivateKey) error {
 	// Try to decrypt auth challenge
 	decKey, err := rsa.DecryptPKCS1v15(nil, pki, msg.Message.([]byte))
 	if err != nil {
-		return fmt.Errorf("Unable to decrypt auth challange: %s", err)
+		return fmt.Errorf("Unable to decrypt auth challenge: %s", err)
 	}
 
 	// Send decrypted auth key to server

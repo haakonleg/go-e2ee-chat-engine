@@ -19,7 +19,7 @@ The server will be deployed on Heroku as a Docker image. A simple (command line)
 
 This project realizes end-to-end encryption in group chat scenarios (such as with chatrooms, in this case). To accomplish this, we use public key cryptography (RSA). Each client who wishes to register a user with the server, first generates an RSA keypair. The server then asks for the clients public key, which is stored in a mongoDB database. The server thus keeps track of each clients public key, to be able to exchange public keys between clients when in a chat session.
 
-When a user joins a chat session, the public key of each user is sent by the server to every other participant in that chat room. Likewise, when a new user joins each participant of the chat room is notified about the new clients key. This is done so that clients can communicate with each other without ever exposing any unencrypted contents of a chat message while the message is transported accross the internet. Encryption/decryption of messages is only done client-side, thus realizing end-to-end encryption.
+When a user joins a chat session, the public key of each user is sent by the server to every other participant in that chat room. Likewise, when a new user joins each participant of the chat room is notified about the new clients key. This is done so that clients can communicate with each other without ever exposing any unencrypted contents of a chat message while the message is transported across the internet. Encryption/decryption of messages is only done client-side, thus realizing end-to-end encryption.
 
 At the moment, a client must create N encrypted copies of a message for N participating clients in a chat room. This is not an optimal solution. In the future a better solution would be to combine public key encryption with symmetric encryption algorithm (AES), and let each client generate a random encryption key which is encrypted with each recipients public key.
 
@@ -120,4 +120,4 @@ We had not written tests until far into the project. The interaction with databa
 
 ### Total work hours
 
-Approximatly 50 hours of work.
+Approximately 50 hours of work.
