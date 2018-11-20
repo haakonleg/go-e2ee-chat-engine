@@ -79,8 +79,9 @@ The original plan was to create a end-to-end encrypted chat engine. A simplistic
 
 ### reflection of what went well and what went wrong with the project
 
-- Rewrite of connection handling not completed due to the size of the task
-- ??
+- Rewrite of connection handling not completed. 
+
+This means that the current handling could be subject to deadlocks if not properly handled. Using mutexes makes it very easy to make mistakes, hence this will probably impair further development of the service. However changing over to a different architecture would be a major refactor, because the use of mutexes is intertwined into the main server handlers. This is a good example of how tight coupling leads to systems which are hard to alter.
 
 ### reflection on the hard aspects of the project
 
