@@ -78,8 +78,8 @@ The original plan was to create a end-to-end encrypted chat engine. As a proof o
 
 ### Unachieved goals
 
-- There are no admins or moderators to moderate or control the contents of the chatrooms.
-- A user must be logged into a chatroom to receive messages.
+- There is no concept of moderators to control the contents of the chatrooms.
+- A client cannot see messages sent when not logged in to a chatroom.
 
 ### Things that went well
 
